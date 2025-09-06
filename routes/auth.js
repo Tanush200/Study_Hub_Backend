@@ -1,51 +1,88 @@
-import express from "express";
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import User from "../models/User.js";
-
+const express = require("express");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
 const router = express.Router();
 
-
-router.post("/signup", async (req, res) => {
+router.post("/register",async (req,res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, profile } = req.body;
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser)
-      return res.status(400).json({ msg: "User already exists" });
+    if(!name || !email || !password) {
+      return res.status(400).json({ message: "Please provide all required fields" });
+    }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ name, email, password: hashedPassword });
-    await newUser.save();
+    if(password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
 
-    res.status(201).json({ msg: "User created successfully" ,newUser});
-  } catch (err) {
-    res.status(500).json({ msg: "Server error" });
+    const existingUser = await User.findOne({
+      $or: [{ email }, { username: name }]
+    })
+
+    if(existingUser) {
+      return res.status(400).json({ message: "User with this email or username already exists" });
+    }
+
+    const user = await User.create({
+      username,
+      email,
+      password,
+      profile : profile || {}
+    })
+
+    const token = jwt.sign({userId: user._id}, process.env.JWT_SECRET, {expiresIn: '7d'});
+    res.status(201).json({
+      message: "User created successfully",
+      token,
+      user:{
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        profile: user.profile
+      }
+    })
+  } catch (error) {
+        console.error("Register error:", error);
+        res.status(500).json({ message: "Server error" });
   }
-});
+})
 
 
-router.post("/login", async (req, res) => {
+router.post("/login", async (req,res) => {
   try {
     const { email, password } = req.body;
 
+    if(!email || !password) {
+      return res.status(400).json({ message: "Please provide all required fields" });
+    }
+
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ msg: "Invalid credentials" });
+    if(!user) {
+      return res.status(400).json({ message: "Invalid email or password" });
+    } 
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ msg: "Invalid credentials" });
-
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
-
-    res.json({
+    const isMatch = await user.comparePassword(password);
+    if(!isMatch) {
+      return res.status(400).json({ message: "Invalid email or password" });
+    }
+    const token = jwt.sign({userId: user._id}, process.env.JWT_SECRET, {expiresIn: '7d'});
+    res.status(200).json({
+      message: "Login successful",
       token,
-      user: { id: user._id, name: user.name, email: user.email },
-    });
-  } catch (err) {
-    res.status(500).json({ msg: "Server error" });
+      user:{
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        profile: user.profile
+      }
+    })            
+  } catch (error) {
+        console.error("Login error:", error);
+        res.status(500).json({ message: "Server error" });
+    
   }
-});
+})
 
-export default router;
+
+module.exports = router;
