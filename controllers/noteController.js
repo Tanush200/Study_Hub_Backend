@@ -76,3 +76,62 @@ const uploadNote = async (req,res) =>{
         res.status(500).json({ message: "Upload failed", error: error.message });
     }
 }
+
+
+const getNotes = async (req,res) => {
+    try {
+        const {page = 1, limit = 10, search, subject} = req.query;
+        let query = {status: 'approved'};
+
+        if(search) {
+            query.$or = [
+                {title: {$regex: search, $options: 'i'}},
+                {description: {$regex: search, $options: 'i'}},
+                {'metadata.tags':{$in :[new RegExp(search, 'i')]}}
+            ];
+
+        }
+
+        if(subject) {
+            query['category.subject'] = subject;
+        }
+        const notes = await Note.find(query)
+        .populate('uploaderId', 'username profile')
+        .sort({createdAt: -1})
+        .limit(limit *  1)
+        .skip((page - 1) * limit);
+
+        const total = await Note.countDocuments(query);
+
+        res.status(200).json({
+            notes,
+            totalPages: Math.ceil(total / limit),
+            currentPage: Number(page),
+            total
+        })
+    } catch (error) {
+        console.error("Get notes error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+}
+
+
+
+const getMyNotes = async (req,res) => {
+    try {
+        const userId = req.user.userId;
+
+        const notes = await Note.find({uploaderId: userId}).sort({createdAt: -1});
+        res.status(200).json(notes);
+    } catch (error) {
+        console.error("Get my notes error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+}
+
+
+module.exports = {
+    uploadNote,
+    getNotes,
+    getMyNotes
+}
