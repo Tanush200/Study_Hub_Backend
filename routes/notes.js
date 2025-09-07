@@ -88,4 +88,41 @@ router.patch("/:id/reject", authMiddleware,adminAuth, async (req, res) => {
   }
 });
 
+router.patch('/:id/view', authMiddleware, async (req, res) => {
+    try {
+        const note = await Note.findByIdAndUpdate(req.params.id, {
+            $inc: { 'stats.views': 1 }
+        }, { new: true });
+        res.json({views : note.metadata.views})
+    } catch (error) {
+          res.status(500).json({ message: "Server error" });
+    }
+})
+
+router.patch('/:id/download', authMiddleware, async (req, res) => {
+    try {
+        const note = await Note.findByIdAndUpdate(
+          req.params.id,
+          { $inc: { "metadata.downloads": 1 } },
+          { new: true }
+        );
+        res.json({ downloads: note.metadata.downloads });
+    } catch (error) {
+        res.status(500).json({ message: "Server error" });
+    }
+})
+
+router.patch('/:id/like',authMiddleware, async(req,res)=>{
+    try {
+        const {action} = req.body;
+        const updateQuery = action === 'like' ?
+        { $inc: { 'metadata.likes': 1 } } :
+        { $inc: { 'metadata.dislikes': 1 } };
+        const note = await Note.findByIdAndUpdate(req.params.id, updateQuery, {new:true});
+        res.json({likes: note.metadata.likes, dislikes: note.metadata.dislikes});
+    } catch (error) {
+        res.status(500).json({ message: "Server error" });
+    }
+})
+
 module.exports = router;
