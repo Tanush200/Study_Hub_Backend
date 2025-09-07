@@ -24,7 +24,7 @@ const uploadToCloudinary = async (fileBuffer, fileName , folder = 'study_hub/not
 const uploadNote = async (req,res) =>{
     try {
         const {title, description, category} = req.body;
-        const userId = req.user.userId;
+        const userId = req.user._id;
 
         if(!req.file){
             return res.status(400).json({message: "No file uploaded"}); 
