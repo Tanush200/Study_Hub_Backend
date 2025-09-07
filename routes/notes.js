@@ -1,24 +1,23 @@
 const express = require("express");
-const Note = require("../models/Note"); // ← Required for admin routes
-const User = require("../models/User"); // ← Required for user updates
+const Note = require("../models/Note");
+const User = require("../models/User");
 const {
   uploadNote,
   getNotes,
   getMyNotes,
 } = require("../controllers/noteController");
 const authMiddleware = require("../middleware/auth");
+const adminAuth = require("../middleware/adminAuth");
 const upload = require("../middleware/upload");
 const router = express.Router();
 
-// Existing routes
+
 router.get("/", getNotes);
 router.post("/upload", authMiddleware, upload.single("file"), uploadNote);
 router.get("/my-notes", authMiddleware, getMyNotes);
 
-// NEW ADMIN ROUTES
-// @route   GET /api/notes/pending
-// @desc    Get all pending notes (admin only)
-router.get("/pending", authMiddleware, async (req, res) => {
+
+router.get("/pending", authMiddleware, adminAuth , async (req, res) => {
   try {
     const pendingNotes = await Note.find({ status: "pending" })
       .populate("uploaderId", "username profile email")
@@ -31,9 +30,8 @@ router.get("/pending", authMiddleware, async (req, res) => {
   }
 });
 
-// @route   PATCH /api/notes/:id/approve
-// @desc    Approve a note (admin only)
-router.patch("/:id/approve", authMiddleware, async (req, res) => {
+
+router.patch("/:id/approve", authMiddleware,adminAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -47,7 +45,7 @@ router.patch("/:id/approve", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "Note not found" });
     }
 
-    // Update user stats
+
     await User.findByIdAndUpdate(note.uploaderId._id, {
       $inc: { "stats.notesUploaded": 1 },
     });
@@ -62,9 +60,7 @@ router.patch("/:id/approve", authMiddleware, async (req, res) => {
   }
 });
 
-// @route   PATCH /api/notes/:id/reject
-// @desc    Reject a note (admin only)
-router.patch("/:id/reject", authMiddleware, async (req, res) => {
+router.patch("/:id/reject", authMiddleware,adminAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;

@@ -31,7 +31,7 @@ router.post("/register",async (req,res) => {
       profile : profile || {}
     })
 
-    const token = jwt.sign({userId: user._id}, process.env.JWT_SECRET, {expiresIn: '7d'});
+    const token = jwt.sign({userId: user._id,email:user.email,role:user.role}, process.env.JWT_SECRET, {expiresIn: '7d'});
     res.status(201).json({
       message: "User created successfully",
       token,
@@ -66,7 +66,7 @@ router.post("/login", async (req,res) => {
     if(!isMatch) {
       return res.status(400).json({ message: "Invalid email or password" });
     }
-    const token = jwt.sign({userId: user._id}, process.env.JWT_SECRET, {expiresIn: '7d'});
+    const token = jwt.sign({userId: user._id,email:user.email,role:user.role}, process.env.JWT_SECRET, {expiresIn: '7d'});
     res.status(200).json({
       message: "Login successful",
       token,
