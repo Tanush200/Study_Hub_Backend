@@ -9,3 +9,6 @@
  Mobile layout works on phone screens
 
  All existing features still work
+
+
+ Now several schools, colleges, institutions, and universities are showing interest in educational app development to connect teachers and students in real-time.

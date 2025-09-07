@@ -42,6 +42,18 @@ const noteSchema = new mongoose.Schema(
       downloads: { type: Number, default: 0 },
       likes: { type: Number, default: 0 },
       dislikes: { type: Number, default: 0 },
+      likedBy:[
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User"
+        }
+      ],
+      dislikedBy:[
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User"
+        }
+      ],
       averageRating: { type: Number, default: 0 },
       tags: [String],
     },
@@ -56,5 +68,9 @@ const noteSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+
+noteSchema.index({'metadata.likedBy': 1});
+noteSchema.index({'metadata.dislikedBy': 1});
 
 module.exports = mongoose.model("Note", noteSchema);

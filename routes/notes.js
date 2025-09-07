@@ -116,18 +116,88 @@ router.patch('/:id/download', authMiddleware, async (req, res) => {
     }
 })
 
-router.patch('/:id/like',authMiddleware, async(req,res)=>{
-    try {
-        const {action} = req.body;
-        const updateQuery = action === 'like' ?
-        { $inc: { 'metadata.likes': 1 } } :
-        { $inc: { 'metadata.dislikes': 1 } };
-        const note = await Note.findByIdAndUpdate(req.params.id, updateQuery, {new:true});
-        res.json({likes: note.metadata.likes, dislikes: note.metadata.dislikes});
-    } catch (error) {
-        res.status(500).json({ message: "Server error" });
+// router.patch('/:id/like',authMiddleware, async(req,res)=>{
+//     try {
+//         const {action} = req.body;
+//         const userId = req.user.id;
+//         const noteId = req.params.id;
+//         const updateQuery = action === 'like' ?
+//         { $inc: { 'metadata.likes': 1 } } :
+//         { $inc: { 'metadata.dislikes': 1 } };
+//         const note = await Note.findByIdAndUpdate(req.params.id, updateQuery, {new:true});
+//         res.json({likes: note.metadata.likes, dislikes: note.metadata.dislikes});
+//     } catch (error) {
+//         res.status(500).json({ message: "Server error" });
+//     }
+// })
+
+
+router.patch("/:id/like", authMiddleware, async (req, res) => {
+  try {
+    const { action } = req.body;
+    const userId = req.user.id;
+    const noteId = req.params.id;
+
+    // Validate input
+    if (!action || !["like", "dislike"].includes(action)) {
+      return res
+        .status(400)
+        .json({ message: 'Invalid action. Use "like" or "dislike"' });
     }
-})
+
+    // Find the note
+    const note = await Note.findById(noteId);
+    if (!note) {
+      return res.status(404).json({ message: "Note not found" });
+    }
+
+    // Initialize metadata if it doesn't exist
+    if (!note.metadata) {
+      note.metadata = {
+        views: 0,
+        likes: 0,
+        dislikes: 0,
+        likedBy: [],
+        dislikedBy: [],
+      };
+    }
+    if (!note.metadata.likedBy) note.metadata.likedBy = [];
+    if (!note.metadata.dislikedBy) note.metadata.dislikedBy = [];
+
+    const hasLiked = note.metadata.likedBy.includes(userId);
+    const hasDisliked = note.metadata.dislikedBy.includes(userId);
+
+    if (action === "like") {
+      if (hasLiked) {
+        // Remove like
+        note.metadata.likedBy.pull(userId);
+        note.metadata.likes = Math.max(0, note.metadata.likes - 1);
+      } else {
+        // Add like
+        note.metadata.likedBy.push(userId);
+        note.metadata.likes += 1;
+
+        // Remove dislike if exists
+        if (hasDisliked) {
+          note.metadata.dislikedBy.pull(userId);
+          note.metadata.dislikes = Math.max(0, note.metadata.dislikes - 1);
+        }
+      }
+    }
+
+    await note.save();
+
+    res.json({
+      likes: note.metadata.likes,
+      dislikes: note.metadata.dislikes,
+      hasLiked: note.metadata.likedBy.includes(userId),
+      hasDisliked: note.metadata.dislikedBy.includes(userId),
+    });
+  } catch (error) {
+    console.error("Like route error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
 
 router.delete("/:id",authMiddleware, fileOwnership, async (req, res) => {
    try {
