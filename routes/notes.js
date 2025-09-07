@@ -91,7 +91,7 @@ router.patch("/:id/reject", authMiddleware,adminAuth, async (req, res) => {
 router.patch('/:id/view', authMiddleware, async (req, res) => {
     try {
         const note = await Note.findByIdAndUpdate(req.params.id, {
-            $inc: { 'stats.views': 1 }
+            $inc: { 'metadata.views': 1 }
         }, { new: true });
         res.json({views : note.metadata.views})
     } catch (error) {
@@ -108,7 +108,8 @@ router.patch('/:id/download', authMiddleware, async (req, res) => {
         );
         res.json({ downloads: note.metadata.downloads });
     } catch (error) {
-        res.status(500).json({ message: "Server error" });
+       console.error("View update error:", error);
+       res.status(500).json({ message: "Server error" });
     }
 })
 
