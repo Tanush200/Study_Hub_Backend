@@ -1,6 +1,9 @@
 const express = require("express");
 const Note = require("../models/Note");
 const User = require("../models/User");
+const fileOwnership = require("../middleware/fileOwnership");
+const fs = require("fs");
+const path = require("path");
 const {
   uploadNote,
   getNotes,
@@ -124,6 +127,35 @@ router.patch('/:id/like',authMiddleware, async(req,res)=>{
     } catch (error) {
         res.status(500).json({ message: "Server error" });
     }
+})
+
+router.delete("/:id",authMiddleware, fileOwnership, async (req, res) => {
+   try {
+    const note = req.note;
+    if(note.file?.filePath){
+        const fullPath = path.join(__dirname, '..', note.file.filePath);
+        try {
+          if(fs.existsSync(fullPath)){
+            fs.unlinkSync(fullPath);
+            console.log(`Deleted file at: ${fullPath}`);
+            
+          }
+        } catch (error) {
+           console.error("Error deleting physical file:", fileError);
+        }
+    }
+    await Note.findByIdAndDelete(req.params.id);
+    res.json({
+      message: "Note deleted successfully",
+      deletedNote:{
+        id:note._id,
+        title:note.title
+      }
+    });
+   } catch (error) {
+        console.error("Delete note error:", error);
+        res.status(500).json({ message: "Server error during deletion" });
+   }
 })
 
 module.exports = router;
