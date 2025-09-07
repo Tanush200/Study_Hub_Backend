@@ -50,6 +50,7 @@ const noteSchema = new mongoose.Schema(
       enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
+    rejectedReason: { type: String,default:null },
   },
   {
     timestamps: true,
