@@ -1,6 +1,8 @@
 const Note = require("../models/Note");
 const User = require("../models/User");
+const Comment = require("../models/Comment"); 
 const cloudinary = require("../utils/cloudinary");
+
 
 // Helper function to upload to Cloudinary
 const uploadToCloudinary = async (fileBuffer, fileName , folder = 'study_hub/notes') => {
@@ -19,63 +21,6 @@ const uploadToCloudinary = async (fileBuffer, fileName , folder = 'study_hub/not
     ).end(fileBuffer);
     });
 };
-
-// POST /api/notes/upload
-// const uploadNote = async (req,res) =>{
-//     try {
-//         const {title, description, category} = req.body;
-//         const userId = req.user._id;
-
-//         if(!req.file){
-//             return res.status(400).json({message: "No file uploaded"}); 
-
-//         }
-
-        
-//         if (!title) {
-//         return res.status(400).json({ message: "Title is required" });
-//         }
-
-//         const uploadResult = await uploadToCloudinary(
-//             req.file.buffer,
-//             `${Date.now()}_${req.file.originalname}`,
-//             'study_hub/notes'
-//         );
-
-//         const note = await Note.create({
-//           title,
-//           description: description || "",
-//           uploaderId: userId,
-//           category: category ? JSON.parse(category) : {},
-//           file: {
-//             cloudinaryId: uploadResult.public_id,
-//             originalName: req.file.originalname,
-//             fileUrl: uploadResult.secure_url,
-//             fileType: req.file.mimetype,
-//             fileSize: req.file.size,
-//             thumbnail: uploadResult.secure_url,
-//           },
-//         });
-
-//         await User.findByIdAndUpdate(userId, {
-//             $inc :{'stats.notesUploaded': 1}
-//         });
-//         res.status(201).json({
-//           message: "Note uploaded successfully",
-//           note: {
-//             id: note._id,
-//             title: note.title,
-//             description: note.description,
-//             fileUrl: note.file.fileUrl,
-//             uploadedAt: note.createdAt,
-//           },
-//         });
-
-//     } catch (error) {
-//         console.error("Upload error:", error);
-//         res.status(500).json({ message: "Upload failed", error: error.message });
-//     }
-// }
 
 const uploadNote = async (req, res) => {
   try {
@@ -189,10 +134,23 @@ const getNotes = async (req,res) => {
         .limit(limit *  1)
         .skip((page - 1) * limit);
 
+        const notesWithCommentCount = await Promise.all(
+          notes.map(async (note) => {
+            const commentCount = await Comment.countDocuments({
+              noteId: note._id,
+              isDeleted: false,
+            });
+            return {
+              ...note.toObject(),
+              commentCount, // ✅ Add comment count to each note
+            };
+          })
+        );
+
         const total = await Note.countDocuments(query);
 
         res.status(200).json({
-            notes,
+            notes: notesWithCommentCount,
             totalPages: Math.ceil(total / limit),
             currentPage: Number(page),
             total
@@ -210,6 +168,18 @@ const getMyNotes = async (req,res) => {
         const userId = req.user._id;
 
         const notes = await Note.find({uploaderId: userId}).sort({createdAt: -1});
+        const notesWithCommentCount = await Promise.all(
+          notes.map(async (note) => {
+            const commentCount = await Comment.countDocuments({
+              noteId: note._id,
+              isDeleted: false,
+            });
+            return {
+              ...note.toObject(),
+              commentCount,
+            };
+          })
+        );
         res.status(200).json(notes);
     } catch (error) {
         console.error("Get my notes error:", error);
