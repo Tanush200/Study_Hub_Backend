@@ -6,46 +6,128 @@ const Note = require("../models/Note");
  * GET /api/notes/:noteId/comments
  * Retrieves all comments with nested replies structure
  */
+// const getComments = async (req, res) => {
+//   try {
+//     const { noteId } = req.params;
+
+//     // Get all comments for the note
+//     const allComments = await Comment.find({
+//       noteId,
+//       isDeleted: false,
+//     })
+//       .populate("authorId", "username profile")
+//       .sort({ createdAt: 1 }); // Sort by oldest first for proper tree building
+
+//     // ✅ BUILD RECURSIVE COMMENT TREE
+//     const commentsTree = buildCommentsTree(allComments);
+
+//     res.json(commentsTree);
+//   } catch (error) {
+//     console.error("Get comments error:", error);
+//     res.status(500).json({ message: "Server error" });
+//   }
+// };
+
+// // ✅ ADD THIS HELPER FUNCTION
+// const buildCommentsTree = (comments) => {
+//   const map = new Map();
+//   const roots = [];
+
+//   // Initialize map with all comments
+//   comments.forEach((comment) => {
+//     map.set(comment._id.toString(), {
+//       ...comment.toObject(),
+//       replies: [],
+//     });
+//   });
+
+//   // Build the tree structure
+//   comments.forEach((comment) => {
+//     const commentObj = map.get(comment._id.toString());
+
+//     if (comment.parentCommentId) {
+//       // It's a reply - add to parent's replies array
+//       const parent = map.get(comment.parentCommentId.toString());
+//       if (parent) {
+//         parent.replies.push(commentObj);
+//       }
+//     } else {
+//       // It's a root comment
+//       roots.push(commentObj);
+//     }
+//   });
+
+//   // Sort root comments by newest first
+//   return roots.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+// };
+
+
+// ✅ FIXED: Improved recursive comment tree builder
+const buildCommentsTree = (comments) => {
+  const commentMap = new Map();
+
+  // Initialize map with all comments
+  comments.forEach((comment) => {
+    commentMap.set(comment._id.toString(), {
+      ...comment.toObject(),
+      replies: [],
+    });
+  });
+
+  const roots = [];
+
+  // Build the tree structure
+  comments.forEach((comment) => {
+    const commentObj = commentMap.get(comment._id.toString());
+
+    if (comment.parentCommentId) {
+      // It's a reply - add to parent's replies array
+      const parent = commentMap.get(comment.parentCommentId.toString());
+      if (parent) {
+        parent.replies.push(commentObj);
+      }
+    } else {
+      // It's a root comment
+      roots.push(commentObj);
+    }
+  });
+
+  // ✅ FIXED: Recursive sorting function
+  const sortReplies = (nodes) => {
+    nodes.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    nodes.forEach((node) => {
+      if (node.replies && node.replies.length > 0) {
+        sortReplies(node.replies);
+      }
+    });
+  };
+
+  sortReplies(roots);
+  return roots;
+};
+
+
+
 const getComments = async (req, res) => {
   try {
     const { noteId } = req.params;
 
-    // Get all comments for the note (root comments + replies)
     const allComments = await Comment.find({
       noteId,
       isDeleted: false,
     })
       .populate("authorId", "username profile")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: 1 }); // Sort by oldest first for proper tree building
 
-    // Organize comments into nested structure
-    const rootComments = allComments.filter(
-      (comment) => !comment.parentCommentId
-    );
-    const replies = allComments.filter((comment) => comment.parentCommentId);
+    // ✅ FIXED: Use improved tree builder
+    const commentsTree = buildCommentsTree(allComments);
 
-    // Attach replies to their parent comments
-    const commentsWithReplies = rootComments.map((rootComment) => {
-      const commentReplies = replies.filter(
-        (reply) =>
-          reply.parentCommentId.toString() === rootComment._id.toString()
-      );
-
-      return {
-        ...rootComment.toObject(),
-        replies: commentReplies.sort(
-          (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
-        ),
-      };
-    });
-
-    res.json(commentsWithReplies);
+    res.json(commentsTree);
   } catch (error) {
     console.error("Get comments error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
-
 /**
  * CREATE NEW COMMENT
  * POST /api/notes/:noteId/comments
