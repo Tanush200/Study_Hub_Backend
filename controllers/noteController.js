@@ -4,7 +4,6 @@ const Comment = require("../models/Comment");
 const cloudinary = require("../utils/cloudinary");
 
 
-// Helper function to upload to Cloudinary
 const uploadToCloudinary = async (fileBuffer, fileName , folder = 'study_hub/notes') => {
     return new Promise((resolve, reject) => {
         cloudinary.uploader.upload_stream({
@@ -25,7 +24,7 @@ const uploadToCloudinary = async (fileBuffer, fileName , folder = 'study_hub/not
 const uploadNote = async (req, res) => {
   try {
     const { title, description, category } = req.body;
-    const userId = req.user._id; // Make sure this is _id, not userId
+    const userId = req.user._id;
 
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
@@ -35,7 +34,6 @@ const uploadNote = async (req, res) => {
       return res.status(400).json({ message: "Title is required" });
     }
 
-    // Parse category JSON string
     let parsedCategory = {};
     try {
       parsedCategory = category ? JSON.parse(category) : {};
@@ -44,14 +42,13 @@ const uploadNote = async (req, res) => {
       parsedCategory = { subject: "General", examType: "semester" };
     }
 
-    // Upload file to Cloudinary
     const uploadResult = await uploadToCloudinary(
       req.file.buffer,
       `${Date.now()}_${req.file.originalname}`,
       "study_hub/notes"
     );
 
-    // Create note in database
+
     const note = await Note.create({
       title,
       description: description || "",
@@ -82,7 +79,6 @@ const uploadNote = async (req, res) => {
       status: "pending",
     });
 
-    // Update user stats
     await User.findByIdAndUpdate(userId, {
       $inc: { "stats.notesUploaded": 1 },
     });
@@ -111,41 +107,96 @@ const uploadNote = async (req, res) => {
 
 
 
-const getNotes = async (req,res) => {
+// const getNotes = async (req,res) => {
+//     try {
+//         const {page = 1, limit = 10, search, subject} = req.query;
+//         let query = {status: 'approved'};
+
+//         if(search) {
+//             query.$or = [
+//                 {title: {$regex: search, $options: 'i'}},
+//                 {description: {$regex: search, $options: 'i'}},
+//                 {'metadata.tags':{$in :[new RegExp(search, 'i')]}}
+//             ];
+
+//         }
+
+//         if(subject) {
+//             query['category.subject'] = subject;
+//         }
+//         const notes = await Note.find(query)
+//         .populate('uploaderId', 'username profile')
+//         .sort({createdAt: -1})
+//         .limit(limit *  1)
+//         .skip((page - 1) * limit);
+
+//         const notesWithCommentCount = await Promise.all(
+//           notes.map(async (note) => {
+//             const commentCount = await Comment.countDocuments({
+//               noteId: note._id,
+//               isDeleted: false,
+//             });
+//             return {
+//               ...note.toObject(),
+//               commentCount,
+//             };
+//           })
+//         );
+
+//         const total = await Note.countDocuments(query);
+
+//         res.status(200).json({
+//             notes: notesWithCommentCount,
+//             totalPages: Math.ceil(total / limit),
+//             currentPage: Number(page),
+//             total
+//         })
+//     } catch (error) {
+//         console.error("Get notes error:", error);
+//         res.status(500).json({ message: "Server error" });
+//     }
+// }
+
+
+const getNotes = async (req, res) => {
     try {
-        const {page = 1, limit = 10, search, subject} = req.query;
-        let query = {status: 'approved'};
+        const { page = 1, limit = 10, search, subject } = req.query;
+        let query = { status: 'approved' };
 
-        if(search) {
+        if (search) {
             query.$or = [
-                {title: {$regex: search, $options: 'i'}},
-                {description: {$regex: search, $options: 'i'}},
-                {'metadata.tags':{$in :[new RegExp(search, 'i')]}}
+                { title: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } },
+                { 'metadata.tags': { $in: [new RegExp(search, 'i')] } }
             ];
-
         }
 
-        if(subject) {
+        if (subject) {
             query['category.subject'] = subject;
         }
-        const notes = await Note.find(query)
-        .populate('uploaderId', 'username profile')
-        .sort({createdAt: -1})
-        .limit(limit *  1)
-        .skip((page - 1) * limit);
 
-        const notesWithCommentCount = await Promise.all(
-          notes.map(async (note) => {
-            const commentCount = await Comment.countDocuments({
-              noteId: note._id,
-              isDeleted: false,
-            });
-            return {
-              ...note.toObject(),
-              commentCount, // ✅ Add comment count to each note
-            };
-          })
-        );
+        const notes = await Note.find(query)
+            .populate('uploaderId', 'username profile')
+            .sort({ createdAt: -1 })
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+
+
+        const noteIds = notes.map(note => note._id);
+        const commentCounts = await Comment.aggregate([
+            { $match: { isDeleted: false, noteId: { $in: noteIds } } },
+            { $group: { _id: "$noteId", count: { $sum: 1 } } }
+        ]);
+
+        const countMap = commentCounts.reduce((acc, cur) => {
+            acc[cur._id.toString()] = cur.count;
+            return acc;
+        }, {});
+
+        const notesWithCommentCount = notes.map(note => ({
+            ...note.toObject(),
+            commentCount: countMap[note._id.toString()] || 0
+        }));
 
         const total = await Note.countDocuments(query);
 
@@ -154,38 +205,70 @@ const getNotes = async (req,res) => {
             totalPages: Math.ceil(total / limit),
             currentPage: Number(page),
             total
-        })
+        });
     } catch (error) {
         console.error("Get notes error:", error);
         res.status(500).json({ message: "Server error" });
     }
-}
+};
 
 
 
-const getMyNotes = async (req,res) => {
-    try {
-        const userId = req.user._id;
+// const getMyNotes = async (req,res) => {
+//     try {
+//         const userId = req.user._id;
 
-        const notes = await Note.find({uploaderId: userId}).sort({createdAt: -1});
-        const notesWithCommentCount = await Promise.all(
-          notes.map(async (note) => {
-            const commentCount = await Comment.countDocuments({
-              noteId: note._id,
-              isDeleted: false,
-            });
-            return {
-              ...note.toObject(),
-              commentCount,
-            };
-          })
-        );
-        res.status(200).json(notes);
-    } catch (error) {
-        console.error("Get my notes error:", error);
-        res.status(500).json({ message: "Server error" });
-    }
-}
+//         const notes = await Note.find({uploaderId: userId}).sort({createdAt: -1});
+//         const notesWithCommentCount = await Promise.all(
+//           notes.map(async (note) => {
+//             const commentCount = await Comment.countDocuments({
+//               noteId: note._id,
+//               isDeleted: false,
+//             });
+//             return {
+//               ...note.toObject(),
+//               commentCount,
+//             };
+//           })
+//         );
+//         res.status(200).json(notesWithCommentCount);
+//     } catch (error) {
+//         console.error("Get my notes error:", error);
+//         res.status(500).json({ message: "Server error" });
+//     }
+// }
+
+
+const getMyNotes = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const notes = await Note.find({ uploaderId: userId }).sort({
+      createdAt: -1,
+    });
+
+    const noteIds = notes.map((note) => note._id);
+    const commentCounts = await Comment.aggregate([
+      { $match: { isDeleted: false, noteId: { $in: noteIds } } },
+      { $group: { _id: "$noteId", count: { $sum: 1 } } },
+    ]);
+
+    const countMap = commentCounts.reduce((acc, cur) => {
+      acc[cur._id.toString()] = cur.count;
+      return acc;
+    }, {});
+
+    const notesWithCommentCount = notes.map((note) => ({
+      ...note.toObject(),
+      commentCount: countMap[note._id.toString()] || 0,
+    }));
+
+    res.status(200).json(notesWithCommentCount);
+  } catch (error) {
+    console.error("Get my notes error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 
 module.exports = {
