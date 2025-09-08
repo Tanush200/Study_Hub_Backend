@@ -1,72 +1,8 @@
 const Comment = require("../models/Comment");
 const Note = require("../models/Note");
 
-/**
- * GET COMMENTS FOR A NOTE
- * GET /api/notes/:noteId/comments
- * Retrieves all comments with nested replies structure
- */
-// const getComments = async (req, res) => {
-//   try {
-//     const { noteId } = req.params;
-
-//     // Get all comments for the note
-//     const allComments = await Comment.find({
-//       noteId,
-//       isDeleted: false,
-//     })
-//       .populate("authorId", "username profile")
-//       .sort({ createdAt: 1 }); // Sort by oldest first for proper tree building
-
-//     // ✅ BUILD RECURSIVE COMMENT TREE
-//     const commentsTree = buildCommentsTree(allComments);
-
-//     res.json(commentsTree);
-//   } catch (error) {
-//     console.error("Get comments error:", error);
-//     res.status(500).json({ message: "Server error" });
-//   }
-// };
-
-// // ✅ ADD THIS HELPER FUNCTION
-// const buildCommentsTree = (comments) => {
-//   const map = new Map();
-//   const roots = [];
-
-//   // Initialize map with all comments
-//   comments.forEach((comment) => {
-//     map.set(comment._id.toString(), {
-//       ...comment.toObject(),
-//       replies: [],
-//     });
-//   });
-
-//   // Build the tree structure
-//   comments.forEach((comment) => {
-//     const commentObj = map.get(comment._id.toString());
-
-//     if (comment.parentCommentId) {
-//       // It's a reply - add to parent's replies array
-//       const parent = map.get(comment.parentCommentId.toString());
-//       if (parent) {
-//         parent.replies.push(commentObj);
-//       }
-//     } else {
-//       // It's a root comment
-//       roots.push(commentObj);
-//     }
-//   });
-
-//   // Sort root comments by newest first
-//   return roots.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-// };
-
-
-// ✅ FIXED: Improved recursive comment tree builder
 const buildCommentsTree = (comments) => {
   const commentMap = new Map();
-
-  // Initialize map with all comments
   comments.forEach((comment) => {
     commentMap.set(comment._id.toString(), {
       ...comment.toObject(),
@@ -76,23 +12,20 @@ const buildCommentsTree = (comments) => {
 
   const rootComments = [];
 
-  // Build the tree structure
+
   comments.forEach((comment) => {
     const commentObj = commentMap.get(comment._id.toString());
 
     if (comment.parentCommentId) {
-      // It's a reply - add to parent's replies array
       const parent = commentMap.get(comment.parentCommentId.toString());
       if (parent) {
         parent.replies.push(commentObj);
       }
     } else {
-      // It's a root comment
       rootComments.push(commentObj);
     }
   });
 
-  // ✅ FIXED: Recursive sorting function
   const sortCommentsRecursively = (commentsList) => {
     commentsList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     commentsList.forEach((comment) => {
@@ -117,9 +50,8 @@ const getComments = async (req, res) => {
       isDeleted: false,
     })
       .populate("authorId", "username profile")
-      .sort({ createdAt: 1 }); // Sort by oldest first for proper tree building
+      .sort({ createdAt: 1 });
 
-    // ✅ FIXED: Use improved tree builder
     const commentsTree = buildCommentsTree(allComments);
 
     res.json(commentsTree);
@@ -128,29 +60,23 @@ const getComments = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-/**
- * CREATE NEW COMMENT
- * POST /api/notes/:noteId/comments
- * Creates a new comment or reply
- */
+
 const createComment = async (req, res) => {
   try {
     const { noteId } = req.params;
     const { text, parentCommentId } = req.body;
     const authorId = req.user._id;
 
-    // Validate input
     if (!text || text.trim().length === 0) {
       return res.status(400).json({ message: "Comment text is required" });
     }
 
-    // Verify note exists
+
     const note = await Note.findById(noteId);
     if (!note) {
       return res.status(404).json({ message: "Note not found" });
     }
 
-    // If it's a reply, verify parent comment exists
     if (parentCommentId) {
       const parentComment = await Comment.findById(parentCommentId);
       if (!parentComment) {
@@ -158,7 +84,6 @@ const createComment = async (req, res) => {
       }
     }
 
-    // Create comment
     const comment = await Comment.create({
       text: text.trim(),
       noteId,
@@ -166,7 +91,7 @@ const createComment = async (req, res) => {
       parentCommentId: parentCommentId || null,
     });
 
-    // Populate author info for response
+
     await comment.populate("authorId", "username profile");
 
     res.status(201).json({
@@ -179,11 +104,6 @@ const createComment = async (req, res) => {
   }
 };
 
-/**
- * UPDATE COMMENT
- * PATCH /api/comments/:id
- * Allows users to edit their own comments
- */
 const updateComment = async (req, res) => {
   try {
     const { id } = req.params;
@@ -194,13 +114,12 @@ const updateComment = async (req, res) => {
       return res.status(400).json({ message: "Comment text is required" });
     }
 
-    // Find comment and verify ownership
+
     const comment = await Comment.findOne({ _id: id, isDeleted: false });
     if (!comment) {
       return res.status(404).json({ message: "Comment not found" });
     }
 
-    // Check if user owns the comment or is admin
     if (
       comment.authorId.toString() !== userId.toString() &&
       req.user.role !== "admin"
@@ -208,7 +127,6 @@ const updateComment = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    // Update comment
     comment.text = text.trim();
     comment.isEdited = true;
     comment.editedAt = new Date();
@@ -226,11 +144,7 @@ const updateComment = async (req, res) => {
   }
 };
 
-/**
- * DELETE COMMENT
- * DELETE /api/comments/:id
- * Soft delete - marks comment as deleted
- */
+
 const deleteComment = async (req, res) => {
   try {
     const { id } = req.params;
@@ -241,7 +155,7 @@ const deleteComment = async (req, res) => {
       return res.status(404).json({ message: "Comment not found" });
     }
 
-    // Check ownership or admin privileges
+
     if (
       comment.authorId.toString() !== userId.toString() &&
       req.user.role !== "admin"
@@ -249,7 +163,7 @@ const deleteComment = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    // Soft delete
+
     comment.isDeleted = true;
     comment.text = "[Comment deleted]";
     await comment.save();
@@ -261,11 +175,7 @@ const deleteComment = async (req, res) => {
   }
 };
 
-/**
- * LIKE/UNLIKE COMMENT
- * PATCH /api/comments/:id/like
- * Toggle like status for a comment
- */
+
 const toggleLike = async (req, res) => {
   try {
     const { id } = req.params;
@@ -279,11 +189,9 @@ const toggleLike = async (req, res) => {
     const hasLiked = comment.likedBy.includes(userId);
 
     if (hasLiked) {
-      // Remove like
       comment.likedBy.pull(userId);
       comment.likes = Math.max(0, comment.likes - 1);
     } else {
-      // Add like
       comment.likedBy.push(userId);
       comment.likes += 1;
     }
