@@ -1,3 +1,4 @@
+// For Cloudinary Integration
 // const Note = require("../models/Note");
 // const User = require("../models/User");
 // const Comment = require("../models/Comment"); 
@@ -280,17 +281,17 @@
 
 
 
-// controllers/noteController.js
+// For ImageKit Integration
 const Note = require("../models/Note");
 const User = require("../models/User");
 const Comment = require("../models/Comment");
-const imagekit = require("../utils/imagekit"); // ✅ Replace cloudinary import
+const imagekit = require("../utils/imagekit");
 
-// ✅ Replace Cloudinary upload function with ImageKit
+
 const uploadToImageKit = async (fileBuffer, fileName, folder = 'study_hub/notes') => {
   try {
     const response = await imagekit.upload({
-      file: fileBuffer, // Buffer from multer
+      file: fileBuffer, 
       fileName: fileName,
       folder: folder,
       useUniqueFileName: true,
@@ -316,7 +317,7 @@ const uploadNote = async (req, res) => {
       return res.status(400).json({ message: "Title is required" });
     }
 
-    // Parse category JSON string
+
     let parsedCategory = {};
     try {
       parsedCategory = category ? JSON.parse(category) : {};
@@ -325,14 +326,14 @@ const uploadNote = async (req, res) => {
       parsedCategory = { subject: "General", examType: "semester" };
     }
 
-    // ✅ Upload file to ImageKit instead of Cloudinary
+
     const uploadResult = await uploadToImageKit(
       req.file.buffer,
       `${Date.now()}_${req.file.originalname}`,
       "study_hub/notes"
     );
 
-    // Create note in database with ImageKit data
+
     const note = await Note.create({
       title,
       description: description || "",
@@ -345,14 +346,12 @@ const uploadNote = async (req, res) => {
         university: parsedCategory.university || "",
       },
       file: {
-        // ✅ Store ImageKit data instead of Cloudinary
         imagekitId: uploadResult.fileId,
         originalName: req.file.originalname,
         fileUrl: uploadResult.url,
         fileType: uploadResult.fileType,
         fileSize: uploadResult.size,
         thumbnail: uploadResult.thumbnailUrl || uploadResult.url,
-        // Additional ImageKit specific fields
         height: uploadResult.height,
         width: uploadResult.width,
         format: uploadResult.fileType,
@@ -375,7 +374,7 @@ const uploadNote = async (req, res) => {
       processingStatus: "completed"
     });
 
-    // Update user stats
+
     await User.findByIdAndUpdate(userId, {
       $inc: { "stats.notesUploaded": 1 },
     });
@@ -402,7 +401,7 @@ const uploadNote = async (req, res) => {
   }
 };
 
-// ✅ Optimized getNotes with bulk comment counting
+
 const getNotes = async (req, res) => {
   try {
     const { page = 1, limit = 10, search, subject } = req.query;
@@ -426,7 +425,7 @@ const getNotes = async (req, res) => {
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
-    // ✅ Optimized: Single aggregation query for all comment counts
+
     const noteIds = notes.map(note => note._id);
     const commentCounts = await Comment.aggregate([
       { $match: { isDeleted: false, noteId: { $in: noteIds } } },
@@ -457,14 +456,14 @@ const getNotes = async (req, res) => {
   }
 };
 
-// ✅ Optimized getMyNotes with bulk comment counting
+
 const getMyNotes = async (req, res) => {
   try {
     const userId = req.user._id;
 
     const notes = await Note.find({ uploaderId: userId }).sort({ createdAt: -1 });
     
-    // ✅ Optimized: Single aggregation query for user's notes
+
     const noteIds = notes.map(note => note._id);
     const commentCounts = await Comment.aggregate([
       { $match: { isDeleted: false, noteId: { $in: noteIds } } },
@@ -481,14 +480,14 @@ const getMyNotes = async (req, res) => {
       commentCount: countMap[note._id.toString()] || 0
     }));
 
-    res.status(200).json(notesWithCommentCount); // ✅ Fixed: Return notes with comment counts
+    res.status(200).json(notesWithCommentCount); // 
   } catch (error) {
     console.error("Get my notes error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// ✅ Add view tracking endpoint for your 401 error fix
+
 const updateViews = async (req, res) => {
   try {
     const { id } = req.params;
@@ -513,7 +512,7 @@ const updateViews = async (req, res) => {
   }
 };
 
-// ✅ Optional: Delete file from ImageKit (for future use)
+
 const deleteFromImageKit = async (fileId) => {
   try {
     const result = await imagekit.deleteFile(fileId);
@@ -528,7 +527,7 @@ module.exports = {
   uploadNote,
   getNotes,
   getMyNotes,
-  updateViews, // ✅ Add this for view tracking
-  deleteFromImageKit // ✅ Optional: for future file deletion feature
+  updateViews, 
+  deleteFromImageKit
 };
 

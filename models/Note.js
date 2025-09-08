@@ -108,27 +108,26 @@ const noteSchema = new mongoose.Schema(
       university: String,
     },
 
-    // ✅ UPDATED: File section for ImageKit
+
     file: {
-      imagekitId: String, // ✅ Changed from cloudinaryId
+      imagekitId: String,
       originalName: String,
       fileUrl: String,
       fileType: String,
       fileSize: Number,
       thumbnail: String,
 
-      // ✅ NEW: Additional ImageKit metadata fields
-      height: Number, // Image/video height in pixels
-      width: Number, // Image/video width in pixels
-      format: String, // File format (jpg, png, pdf, etc.)
+  
+      height: Number, 
+      width: Number, 
+      format: String, 
       versionInfo: {
-        // ✅ NEW: Version tracking
+   
         id: String,
         name: String,
       },
-      AITags: [String], // ✅ NEW: Auto-generated AI tags from ImageKit
+      AITags: [String], 
       isPrivateFile: {
-        // ✅ NEW: Privacy setting
         type: Boolean,
         default: false,
       },
@@ -152,10 +151,9 @@ const noteSchema = new mongoose.Schema(
         },
       ],
       averageRating: { type: Number, default: 0 },
-      tags: [String], // Manual tags
+      tags: [String], 
 
-      // ✅ NEW: Enhanced metadata for better analytics
-      lastViewedAt: Date, // Track recent activity
+      lastViewedAt: Date, 
       downloadCount: { type: Number, default: 0 },
       shareCount: { type: Number, default: 0 },
     },
@@ -167,7 +165,7 @@ const noteSchema = new mongoose.Schema(
     },
     rejectedReason: { type: String, default: null },
 
-    // ✅ NEW: Processing status for ImageKit transformations
+
     processingStatus: {
       type: String,
       enum: ["processing", "completed", "failed"],
@@ -179,20 +177,20 @@ const noteSchema = new mongoose.Schema(
   }
 );
 
-// ✅ UPDATED: Add indexes for better query performance
+
 noteSchema.index({ "metadata.likedBy": 1 });
 noteSchema.index({ "metadata.dislikedBy": 1 });
-noteSchema.index({ "file.imagekitId": 1 }); // New index for ImageKit ID
-noteSchema.index({ "file.format": 1 }); // Index for file format queries
-noteSchema.index({ "metadata.lastViewedAt": -1 }); // Index for recent activity
-noteSchema.index({ status: 1, createdAt: -1 }); // Compound index for status queries
+noteSchema.index({ "file.imagekitId": 1 });
+noteSchema.index({ "file.format": 1 }); 
+noteSchema.index({ "metadata.lastViewedAt": -1 }); 
+noteSchema.index({ status: 1, createdAt: -1 }); 
 
-// ✅ NEW: Virtual for calculating total interactions
+
 noteSchema.virtual("metadata.totalInteractions").get(function () {
   return this.metadata.likes + this.metadata.dislikes + this.metadata.views;
 });
 
-// ✅ NEW: Pre-save middleware to update processing status
+
 noteSchema.pre("save", function (next) {
   if (this.isNew && !this.file.imagekitId) {
     this.processingStatus = "processing";
