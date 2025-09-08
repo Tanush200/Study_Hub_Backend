@@ -9,8 +9,8 @@ const {
   toggleLike,
 } = require("../controllers/commentController");
 
-// Comment routes
-router.get("/notes/:noteId/comments", getComments); // Public - anyone can read comments
+
+router.get("/notes/:noteId/comments", getComments);
 router.post("/notes/:noteId/comments", authMiddleware, createComment);
 router.patch("/comments/:id", authMiddleware, updateComment);
 router.delete("/comments/:id", authMiddleware, deleteComment);
