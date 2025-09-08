@@ -74,7 +74,7 @@ const buildCommentsTree = (comments) => {
     });
   });
 
-  const roots = [];
+  const rootComments = [];
 
   // Build the tree structure
   comments.forEach((comment) => {
@@ -88,22 +88,22 @@ const buildCommentsTree = (comments) => {
       }
     } else {
       // It's a root comment
-      roots.push(commentObj);
+      rootComments.push(commentObj);
     }
   });
 
   // ✅ FIXED: Recursive sorting function
-  const sortReplies = (nodes) => {
-    nodes.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    nodes.forEach((node) => {
-      if (node.replies && node.replies.length > 0) {
-        sortReplies(node.replies);
+  const sortCommentsRecursively = (commentsList) => {
+    commentsList.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    commentsList.forEach((comment) => {
+      if (comment.replies && comment.replies.length > 0) {
+        sortCommentsRecursively(comment.replies);
       }
     });
   };
 
-  sortReplies(roots);
-  return roots;
+  sortCommentsRecursively(rootComments);
+  return rootComments;
 };
 
 
