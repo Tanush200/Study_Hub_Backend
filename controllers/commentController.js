@@ -11,6 +11,7 @@ const buildCommentsTree = (comments) => {
   });
 
   const rootComments = [];
+  
 
 
   comments.forEach((comment) => {

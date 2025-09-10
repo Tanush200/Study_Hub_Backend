@@ -286,6 +286,7 @@ const Note = require("../models/Note");
 const User = require("../models/User");
 const Comment = require("../models/Comment");
 const imagekit = require("../utils/imagekit");
+const XPService = require("../services/xpService");
 
 
 const uploadToImageKit = async (fileBuffer, fileName, folder = 'study_hub/notes') => {
@@ -395,6 +396,19 @@ const uploadNote = async (req, res) => {
         },
       },
     });
+      await XPService.awardXP(
+        req.user.id,
+        "UPLOAD_NOTE",
+        null,
+        note._id,
+        `Uploaded note: ${note.title}`
+      );
+
+      res.status(201).json({
+        message: "Note uploaded successfully",
+        note,
+        xpEarned: XPService.XP_VALUES.UPLOAD_NOTE,
+      });
   } catch (error) {
     console.error("Upload error:", error);
     res.status(500).json({ message: "Upload failed", error: error.message });

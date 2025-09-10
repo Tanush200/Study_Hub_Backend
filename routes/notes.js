@@ -2,7 +2,8 @@ const express = require("express");
 const Note = require("../models/Note");
 const User = require("../models/User");
 const fileOwnership = require("../middleware/fileOwnership");
-const imagekit = require("../utils/imagekit"); // ✅ Added ImageKit import
+const imagekit = require("../utils/imagekit"); 
+const XPService = require("../services/xpService");
 const {
   uploadNote,
   getNotes,
