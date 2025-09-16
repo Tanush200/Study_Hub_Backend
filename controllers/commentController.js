@@ -1,5 +1,6 @@
 const Comment = require("../models/Comment");
 const Note = require("../models/Note");
+const XPService = require("../services/xpService");
 
 const buildCommentsTree = (comments) => {
   const commentMap = new Map();
@@ -95,10 +96,25 @@ const createComment = async (req, res) => {
 
     await comment.populate("authorId", "username profile");
 
-    res.status(201).json({
-      message: "Comment created successfully",
-      comment,
-    });
+     const xpResult = await XPService.awardXP(
+       req.user.id,
+       "COMMENT",
+       null,
+       comment._id,
+       `Commented on note: ${note.title}`
+     );
+
+     
+
+   res.status(201).json({
+     message: "Comment created successfully",
+     comment,
+     gamification: {
+       xpEarned: xpResult.earnedXP,
+       newBadges: xpResult.newBadges,
+       completedChallenges: xpResult.completedChallenges,
+     },
+   });
   } catch (error) {
     console.error("Create comment error:", error);
     res.status(500).json({ message: "Server error" });

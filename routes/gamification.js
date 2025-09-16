@@ -3,7 +3,7 @@ const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
 const Badge = require("../models/Badge");
-const Challenge = require("../models/Challenge");
+const Challenge = require("../models/Challenges");
 const XPService = require("../services/xpService");
 const auth = require("../middleware/auth");
 
@@ -57,7 +57,7 @@ router.get("/leaderboard", async (req, res) => {
           xp: 1,
           level: { $add: [{ $floor: { $divide: ["$xp", 100] } }, 1] },
           monthlyXP: "$monthlyStats.monthlyXP",
-          badgeCount: { $size: "$badges" },
+          badgeCount: { $size: { $ifNull: ["$badges", []] } },
         },
       },
     ]);

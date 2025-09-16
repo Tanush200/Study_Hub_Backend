@@ -305,6 +305,127 @@ const uploadToImageKit = async (fileBuffer, fileName, folder = 'study_hub/notes'
   }
 };
 
+// const uploadNote = async (req, res) => {
+//   try {
+//     const { title, description, category } = req.body;
+//     const userId = req.user._id;
+
+//     if (!req.file) {
+//       return res.status(400).json({ message: "No file uploaded" });
+//     }
+
+//     if (!title) {
+//       return res.status(400).json({ message: "Title is required" });
+//     }
+
+
+//     let parsedCategory = {};
+//     try {
+//       parsedCategory = category ? JSON.parse(category) : {};
+//     } catch (parseError) {
+//       console.error("Category JSON parse error:", parseError);
+//       parsedCategory = { subject: "General", examType: "semester" };
+//     }
+
+
+//     const uploadResult = await uploadToImageKit(
+//       req.file.buffer,
+//       `${Date.now()}_${req.file.originalname}`,
+//       "study_hub/notes"
+//     );
+
+
+//     const note = await Note.create({
+//       title,
+//       description: description || "",
+//       uploaderId: userId,
+//       category: {
+//         subject: parsedCategory.subject || "General",
+//         topic: parsedCategory.topic || "",
+//         examType: parsedCategory.examType || "semester",
+//         class: parsedCategory.class || "",
+//         university: parsedCategory.university || "",
+//       },
+//       file: {
+//         imagekitId: uploadResult.fileId,
+//         originalName: req.file.originalname,
+//         fileUrl: uploadResult.url,
+//         fileType: uploadResult.fileType,
+//         fileSize: uploadResult.size,
+//         thumbnail: uploadResult.thumbnailUrl || uploadResult.url,
+//         height: uploadResult.height,
+//         width: uploadResult.width,
+//         format: uploadResult.fileType,
+//         versionInfo: {
+//           id: uploadResult.versionInfo?.id,
+//           name: uploadResult.versionInfo?.name,
+//         },
+//         AITags: uploadResult.AITags || [],
+//         isPrivateFile: uploadResult.isPrivateFile || false,
+//       },
+//       metadata: {
+//         views: 0,
+//         downloads: 0,
+//         likes: 0,
+//         dislikes: 0,
+//         averageRating: 0,
+//         tags: uploadResult.tags || [],
+//       },
+//       status: "pending",
+//       processingStatus: "completed"
+//     });
+
+
+//     await User.findByIdAndUpdate(userId, {
+//       $inc: { "stats.notesUploaded": 1 },
+//     });
+
+//     res.status(201).json({
+//       message: "Note uploaded successfully",
+//       note: {
+//         _id: note._id,
+//         title: note.title,
+//         description: note.description,
+//         category: note.category,
+//         fileUrl: note.file.fileUrl,
+//         createdAt: note.createdAt,
+//         status: note.status,
+//         file: {
+//           fileSize: note.file.fileSize,
+//           originalName: note.file.originalName,
+//         },
+//       },
+//     });
+//     const xpResult = await XPService.awardXP(
+//       req.user.id,
+//       "UPLOAD_NOTE",
+//       null,
+//       note._id,
+//       `Uploaded note: ${note.title}`
+//     );
+
+//     await User.findByIdAndDelete(req.user.id, {
+//       $inc: { "stats.notesUploaded": 1 },
+//     });
+      
+
+//      res.status(201).json({
+//        message: "Note uploaded successfully",
+//        note,
+//        gamification: {
+//          xpEarned: xpResult.earnedXP,
+//          newLevel: xpResult.newLevel,
+//          leveledUp: xpResult.leveledUp,
+//          newBadges: xpResult.newBadges,
+//          completedChallenges: xpResult.completedChallenges,
+//        },
+//      });
+//   } catch (error) {
+//     console.error("Upload error:", error);
+//     res.status(500).json({ message: "Upload failed", error: error.message });
+//   }
+// };
+
 const uploadNote = async (req, res) => {
   try {
     const { title, description, category } = req.body;
@@ -318,7 +439,6 @@ const uploadNote = async (req, res) => {
       return res.status(400).json({ message: "Title is required" });
     }
 
-
     let parsedCategory = {};
     try {
       parsedCategory = category ? JSON.parse(category) : {};
@@ -327,13 +447,11 @@ const uploadNote = async (req, res) => {
       parsedCategory = { subject: "General", examType: "semester" };
     }
 
-
     const uploadResult = await uploadToImageKit(
       req.file.buffer,
       `${Date.now()}_${req.file.originalname}`,
       "study_hub/notes"
     );
-
 
     const note = await Note.create({
       title,
@@ -372,14 +490,26 @@ const uploadNote = async (req, res) => {
         tags: uploadResult.tags || [],
       },
       status: "pending",
-      processingStatus: "completed"
+      processingStatus: "completed",
     });
 
+    // ✅ Award XP BEFORE sending response
+    const xpResult = await XPService.awardXP(
+      req.user.id,
+      "UPLOAD_NOTE",
+      null,
+      note._id,
+      `Uploaded note: ${note.title}`
+    );
 
+    // ✅ Update user stats (ONLY ONCE)
     await User.findByIdAndUpdate(userId, {
       $inc: { "stats.notesUploaded": 1 },
     });
 
+    console.log("🎮 XP Result for upload:", xpResult);
+
+    // ✅ SINGLE response with all data
     res.status(201).json({
       message: "Note uploaded successfully",
       note: {
@@ -395,20 +525,18 @@ const uploadNote = async (req, res) => {
           originalName: note.file.originalName,
         },
       },
+      // ✅ Include gamification data
+      gamification: xpResult.success
+        ? {
+            xpEarned: xpResult.earnedXP,
+            newXP: xpResult.newXP,
+            newLevel: xpResult.newLevel,
+            leveledUp: xpResult.leveledUp,
+            newBadges: xpResult.newBadges || [],
+            completedChallenges: xpResult.completedChallenges || [],
+          }
+        : null,
     });
-      await XPService.awardXP(
-        req.user.id,
-        "UPLOAD_NOTE",
-        null,
-        note._id,
-        `Uploaded note: ${note.title}`
-      );
-
-      res.status(201).json({
-        message: "Note uploaded successfully",
-        note,
-        xpEarned: XPService.XP_VALUES.UPLOAD_NOTE,
-      });
   } catch (error) {
     console.error("Upload error:", error);
     res.status(500).json({ message: "Upload failed", error: error.message });

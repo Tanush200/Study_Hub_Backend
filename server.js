@@ -25,6 +25,7 @@ app.use("/api", commentRoutes);
 app.use("/api/follow", followRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/bookmarks", Bookmark)
+app.use("/api/gamification", require("./routes/gamification"));
 
 mongoose
   .connect(process.env.MONGODB_URI)
