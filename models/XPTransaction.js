@@ -1,4 +1,4 @@
-// backend/models/XPTransaction.js
+
 const mongoose = require("mongoose");
 
 const xpTransactionSchema = new mongoose.Schema(
@@ -24,7 +24,7 @@ const xpTransactionSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
-    relatedId: mongoose.Schema.Types.ObjectId, // noteId, commentId, etc.
+    relatedId: mongoose.Schema.Types.ObjectId,
     description: String,
   },
   {

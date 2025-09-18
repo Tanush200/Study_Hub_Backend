@@ -1,28 +1,28 @@
-// routes/users.js
+
 const express = require("express");
 const mongoose = require("mongoose");
 const router = express.Router();
 const User = require("../models/User");
 
-// ✅ GET user profile by ID with validation
+
 router.get("/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
 
-    console.log("🔍 Received userId:", userId); // Debug log
+    console.log("🔍 Received userId:", userId); 
 
-    // ✅ Validate userId exists and is not 'undefined'
+
     if (!userId || userId === "undefined") {
       return res.status(400).json({ message: "User ID is required" });
     }
 
-    // ✅ Validate MongoDB ObjectId format
+
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: "Invalid User ID format" });
     }
 
     const user = await User.findById(userId)
-      .select("-password -tokens") // Exclude sensitive data
+      .select("-password -tokens")
       .lean();
 
     if (!user) {

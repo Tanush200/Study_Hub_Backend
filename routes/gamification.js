@@ -1,4 +1,4 @@
-// backend/routes/gamification.js
+
 const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
@@ -7,7 +7,7 @@ const Challenge = require("../models/Challenges");
 const XPService = require("../services/xpService");
 const auth = require("../middleware/auth");
 
-// Get user's gamification profile
+
 router.get("/profile", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
@@ -32,7 +32,6 @@ router.get("/profile", auth, async (req, res) => {
   }
 });
 
-// Get leaderboard
 router.get("/leaderboard", async (req, res) => {
   try {
     const { type = "overall", limit = 50 } = req.query;
@@ -62,7 +61,6 @@ router.get("/leaderboard", async (req, res) => {
       },
     ]);
 
-    // Add ranking
     const rankedLeaderboard = leaderboard.map((user, index) => ({
       ...user,
       rank: index + 1,
@@ -79,7 +77,7 @@ router.get("/leaderboard", async (req, res) => {
   }
 });
 
-// Get user's rank
+
 router.get("/rank", auth, async (req, res) => {
   try {
     const { type = "overall" } = req.query;
@@ -111,7 +109,7 @@ router.get("/rank", auth, async (req, res) => {
   }
 });
 
-// Get active challenges
+
 router.get("/challenges", auth, async (req, res) => {
   try {
     const currentDate = new Date();
@@ -121,7 +119,6 @@ router.get("/challenges", auth, async (req, res) => {
       endDate: { $gte: currentDate },
     });
 
-    // Get user's progress for each challenge
     const user = await User.findById(req.user.id);
     const challengesWithProgress = challenges.map((challenge) => {
       const userProgress = user.challengeProgress.find(
@@ -143,10 +140,10 @@ router.get("/challenges", auth, async (req, res) => {
   }
 });
 
-// Award manual XP (admin only)
+
 router.post("/award-xp", auth, async (req, res) => {
   try {
-    // Add admin check here
+
     const { userId, action, xpAmount, description } = req.body;
 
     const result = await XPService.awardXP(

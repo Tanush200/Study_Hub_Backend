@@ -493,7 +493,7 @@ const uploadNote = async (req, res) => {
       processingStatus: "completed",
     });
 
-    // ✅ Award XP BEFORE sending response
+
     const xpResult = await XPService.awardXP(
       req.user.id,
       "UPLOAD_NOTE",
@@ -502,14 +502,14 @@ const uploadNote = async (req, res) => {
       `Uploaded note: ${note.title}`
     );
 
-    // ✅ Update user stats (ONLY ONCE)
+
     await User.findByIdAndUpdate(userId, {
       $inc: { "stats.notesUploaded": 1 },
     });
 
     console.log("🎮 XP Result for upload:", xpResult);
 
-    // ✅ SINGLE response with all data
+
     res.status(201).json({
       message: "Note uploaded successfully",
       note: {
@@ -525,7 +525,7 @@ const uploadNote = async (req, res) => {
           originalName: note.file.originalName,
         },
       },
-      // ✅ Include gamification data
+
       gamification: xpResult.success
         ? {
             xpEarned: xpResult.earnedXP,

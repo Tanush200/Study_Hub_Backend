@@ -1,4 +1,4 @@
-// backend/scripts/checkUserBadges.js
+
 const mongoose = require("mongoose");
 const User = require("../models/User");
 const Badge = require("../models/Badge");
@@ -9,7 +9,7 @@ async function checkUserBadges() {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log("✅ Connected to MongoDB");
 
-    // Replace 'Tanush_05' with your actual username
+
     const user = await User.findOne({ username: "Tanush_05" }).populate(
       "badges.badgeId"
     );

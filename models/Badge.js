@@ -1,4 +1,4 @@
-// backend/models/Badge.js
+
 const mongoose = require("mongoose");
 
 const badgeSchema = new mongoose.Schema(
@@ -15,26 +15,26 @@ const badgeSchema = new mongoose.Schema(
     icon: {
       type: String,
       required: true,
-    }, // emoji or image URL
+    }, 
     category: {
       type: String,
       enum: ["upload", "engagement", "streak", "milestone", "special"],
       required: true,
     },
 
-    // Badge requirements
+
     requirements: {
       xpThreshold: Number,
       notesUploaded: Number,
       daysStreak: Number,
       likesReceived: Number,
-      custom: String, // for special conditions
+      custom: String, 
     },
 
-    // Badge rewards
+    
     rewards: {
       xpBonus: { type: Number, default: 0 },
-      title: String, // special user title
+      title: String,
     },
 
     rarity: {

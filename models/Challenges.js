@@ -1,4 +1,4 @@
-// backend/models/Challenge.js
+
 const mongoose = require("mongoose");
 
 const challengeSchema = new mongoose.Schema(
@@ -16,7 +16,7 @@ const challengeSchema = new mongoose.Schema(
       required: true,
     },
 
-    // Challenge type and requirements
+
     type: {
       type: String,
       enum: ["weekly", "monthly", "daily", "seasonal"],
@@ -31,14 +31,14 @@ const challengeSchema = new mongoose.Schema(
       target: {
         type: Number,
         required: true,
-      }, // e.g., upload 5 notes
+      }, 
       timeframe: {
         type: Number,
         required: true,
-      }, // days
+      }, 
     },
 
-    // Rewards for completion
+
     rewards: {
       xp: {
         type: Number,
@@ -50,7 +50,7 @@ const challengeSchema = new mongoose.Schema(
       },
     },
 
-    // Challenge timing
+
     startDate: {
       type: Date,
       required: true,

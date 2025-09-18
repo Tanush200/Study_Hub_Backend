@@ -373,9 +373,9 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// ✅ Add validation to prevent self-follow
+
 userSchema.pre("save", function (next) {
-  // Remove self from followers/following arrays if somehow added
+
   this.followers = this.followers.filter((id) => !id.equals(this._id));
   this.following = this.following.filter((id) => !id.equals(this._id));
   next();

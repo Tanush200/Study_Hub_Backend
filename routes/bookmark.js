@@ -1,29 +1,29 @@
-// backend/routes/bookmarks.js
+
 const express = require("express");
 const router = express.Router();
 const Bookmark = require("../models/Bookmark");
 const Note = require("../models/Note");
 const auth = require("../middleware/auth");
 
-// Add bookmark
+
 router.post("/add", auth, async (req, res) => {
   try {
     const { noteId } = req.body;
     const userId = req.user.id || req.user.userId;
 
-    // Check if note exists
+
     const note = await Note.findById(noteId);
     if (!note) {
       return res.status(404).json({ message: "Note not found" });
     }
 
-    // Check if already bookmarked
+
     const existingBookmark = await Bookmark.findOne({ userId, noteId });
     if (existingBookmark) {
       return res.status(400).json({ message: "Note already bookmarked" });
     }
 
-    // Create bookmark
+
     const bookmark = new Bookmark({ userId, noteId });
     await bookmark.save();
 
@@ -37,7 +37,7 @@ router.post("/add", auth, async (req, res) => {
   }
 });
 
-// Remove bookmark
+
 router.delete("/remove", auth, async (req, res) => {
   try {
     const { noteId } = req.body;
@@ -56,7 +56,7 @@ router.delete("/remove", auth, async (req, res) => {
   }
 });
 
-// Check if bookmarked
+
 router.get("/check/:noteId", auth, async (req, res) => {
   try {
     const { noteId } = req.params;
@@ -71,7 +71,7 @@ router.get("/check/:noteId", auth, async (req, res) => {
   }
 });
 
-// Get user's bookmarks
+
 router.get("/my-bookmarks", auth, async (req, res) => {
   try {
     const userId = req.user.id || req.user.userId;
@@ -81,7 +81,7 @@ router.get("/my-bookmarks", auth, async (req, res) => {
       .sort({ createdAt: -1 });
 
     res.json({
-      bookmarks: bookmarks.filter((b) => b.noteId), // Filter out deleted notes
+      bookmarks: bookmarks.filter((b) => b.noteId),
       total: bookmarks.length,
     });
   } catch (error) {

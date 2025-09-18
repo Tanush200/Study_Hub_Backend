@@ -112,7 +112,7 @@
 
 
 
-// backend/services/xpService.js - Enhanced version
+
 const User = require('../models/User');
 const Badge = require('../models/Badge');
 const XPTransaction = require('../models/XPTransaction');
@@ -126,12 +126,12 @@ class XPService {
     LIKE_RECEIVED: 1
   };
 
-  // ✅ Enhanced XP awarding with automatic badge checking
+
   static async awardXP(userId, action, xpAmount = null, relatedId = null, description = '') {
     try {
       const earnedXP = xpAmount || this.XP_VALUES[action] || 0;
       
-      // Get user's current data
+ 
       const user = await User.findById(userId);
       if (!user) {
         return { success: false, error: 'User not found' };
@@ -142,7 +142,7 @@ class XPService {
       const oldLevel = Math.floor(oldXP / 100) + 1;
       const newLevel = Math.floor(newXP / 100) + 1;
 
-      // Update user XP and monthly stats
+
       const currentMonth = new Date().toISOString().slice(0, 7);
       await User.findByIdAndUpdate(userId, {
         $inc: { 
@@ -155,7 +155,7 @@ class XPService {
         }
       });
 
-      // Log XP transaction
+
       await XPTransaction.create({
         userId,
         action,
@@ -164,10 +164,10 @@ class XPService {
         description: description || `Earned ${earnedXP} XP for ${action}`
       });
 
-      // ✅ AUTOMATICALLY CHECK AND AWARD BADGES
+ 
       const badgeResults = await this.checkAndAwardBadges(userId, newXP, action);
       
-      // ✅ UPDATE CHALLENGE PROGRESS
+
       await this.updateChallengeProgress(userId, action);
 
       console.log(`💰 User ${userId} earned ${earnedXP} XP for ${action}. Total: ${newXP} XP`);
@@ -189,7 +189,7 @@ class XPService {
     }
   }
 
-  // ✅ Enhanced badge checking with real criteria
+
   static async checkAndAwardBadges(userId, currentXP, action) {
     try {
       const user = await User.findById(userId)
@@ -198,35 +198,34 @@ class XPService {
         
       const earnedBadgeIds = user.badges.map(b => b.badgeId?._id?.toString()).filter(Boolean);
 
-      // Get eligible badges based on multiple criteria
+
       const eligibleBadges = await Badge.find({
         _id: { $nin: earnedBadgeIds },
         isActive: true,
         $or: [
           { 'requirements.xpThreshold': { $lte: currentXP } },
           { 'requirements.notesUploaded': { $lte: user.stats.notesUploaded } },
-          // Add more criteria as needed
+      
         ]
       });
 
       const newBadges = [];
 
-      // Award eligible badges
       for (const badge of eligibleBadges) {
         let qualifies = false;
 
-        // Check XP threshold
+ 
         if (badge.requirements.xpThreshold && currentXP >= badge.requirements.xpThreshold) {
           qualifies = true;
         }
 
-        // Check notes uploaded
+ 
         if (badge.requirements.notesUploaded && user.stats.notesUploaded >= badge.requirements.notesUploaded) {
           qualifies = true;
         }
 
         if (qualifies) {
-          // Award badge
+
           await User.findByIdAndUpdate(userId, {
             $push: {
               badges: {
@@ -236,7 +235,7 @@ class XPService {
             }
           });
 
-          // Award bonus XP if badge has rewards
+
           if (badge.rewards?.xpBonus > 0) {
             await User.findByIdAndUpdate(userId, {
               $inc: { xp: badge.rewards.xpBonus }
@@ -255,13 +254,13 @@ class XPService {
     }
   }
 
-  // ✅ NEW: Challenge progress tracking
+
   static async updateChallengeProgress(userId, action) {
     try {
       const user = await User.findById(userId);
       const activeDate = new Date();
       
-      // Find active challenges for this action
+
       const Challenge = require('../models/Challenge');
       const activeChallenges = await Challenge.find({
         isActive: true,
@@ -271,13 +270,13 @@ class XPService {
       });
 
       for (const challenge of activeChallenges) {
-        // Find user's progress for this challenge
+
         let challengeProgress = user.challengeProgress.find(
           cp => cp.challengeId.toString() === challenge._id.toString()
         );
 
         if (!challengeProgress) {
-          // Create new progress entry
+
           challengeProgress = {
             challengeId: challenge._id,
             progress: 0,
@@ -287,15 +286,14 @@ class XPService {
         }
 
         if (!challengeProgress.completed) {
-          // Increment progress
+      
           challengeProgress.progress += 1;
 
-          // Check if challenge is completed
+    
           if (challengeProgress.progress >= challenge.requirements.target) {
             challengeProgress.completed = true;
             challengeProgress.completedAt = new Date();
 
-            // Award challenge rewards
             if (challenge.rewards.xp > 0) {
               await User.findByIdAndUpdate(userId, {
                 $inc: { xp: challenge.rewards.xp }

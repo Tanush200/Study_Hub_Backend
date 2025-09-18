@@ -1,13 +1,13 @@
-// controllers/followController.js
+
 const User = require("../models/User");
 
-// Follow a user
+
 const followUser = async (req, res) => {
   try {
     const { targetUserId } = req.params;
     const currentUserId = req.user._id;
 
-    // Validation checks
+
     if (currentUserId.toString() === targetUserId) {
       return res.status(400).json({ message: "You cannot follow yourself" });
     }
@@ -19,12 +19,12 @@ const followUser = async (req, res) => {
 
     const currentUser = await User.findById(currentUserId);
 
-    // Check if already following
+
     if (currentUser.following.includes(targetUserId)) {
       return res.status(400).json({ message: "Already following this user" });
     }
 
-    // Update both users atomically
+  
     await Promise.all([
       User.findByIdAndUpdate(currentUserId, {
         $addToSet: { following: targetUserId },
@@ -47,7 +47,7 @@ const followUser = async (req, res) => {
   }
 };
 
-// Unfollow a user
+
 const unfollowUser = async (req, res) => {
   try {
     const { targetUserId } = req.params;
@@ -60,12 +60,11 @@ const unfollowUser = async (req, res) => {
 
     const currentUser = await User.findById(currentUserId);
 
-    // Check if not following
+
     if (!currentUser.following.includes(targetUserId)) {
       return res.status(400).json({ message: "Not following this user" });
     }
 
-    // Update both users atomically
     await Promise.all([
       User.findByIdAndUpdate(currentUserId, {
         $pull: { following: targetUserId },
@@ -88,7 +87,7 @@ const unfollowUser = async (req, res) => {
   }
 };
 
-// Get user's followers
+
 const getFollowers = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -118,7 +117,6 @@ const getFollowers = async (req, res) => {
   }
 };
 
-// Get user's following
 const getFollowing = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -148,7 +146,7 @@ const getFollowing = async (req, res) => {
   }
 };
 
-// Check follow status
+
 const getFollowStatus = async (req, res) => {
   try {
     const { targetUserId } = req.params;

@@ -1,4 +1,4 @@
-// backend/scripts/checkBadges.js
+
 const mongoose = require("mongoose");
 const Badge = require("../models/Badge");
 require("dotenv").config();

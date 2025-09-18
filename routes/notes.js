@@ -14,7 +14,7 @@ const adminAuth = require("../middleware/adminAuth");
 const upload = require("../middleware/upload");
 const router = express.Router();
 
-// ✅ All existing routes remain the same
+
 router.get("/", getNotes);
 router.post("/upload", authMiddleware, upload.single("file"), uploadNote);
 router.get("/my-notes", authMiddleware, getMyNotes);
@@ -94,7 +94,7 @@ router.patch("/:id/view", authMiddleware, async (req, res) => {
       req.params.id,
       {
         $inc: { "metadata.views": 1 },
-        $set: { "metadata.lastViewedAt": new Date() }, // ✅ Added timestamp
+        $set: { "metadata.lastViewedAt": new Date() },
       },
       { new: true }
     );
@@ -197,19 +197,19 @@ router.patch("/:id/like", authMiddleware, async (req, res) => {
   }
 });
 
-// ✅ UPDATED: Delete route for ImageKit
+
 router.delete("/:id", authMiddleware, fileOwnership, async (req, res) => {
   try {
     const note = req.note;
 
-    // Delete file from ImageKit instead of local filesystem
+
     if (note.file?.imagekitId) {
       try {
         await imagekit.deleteFile(note.file.imagekitId);
         console.log(`Deleted file from ImageKit: ${note.file.imagekitId}`);
       } catch (fileError) {
         console.error("Error deleting file from ImageKit:", fileError);
-        // Continue with note deletion even if file deletion fails
+   
       }
     }
 
