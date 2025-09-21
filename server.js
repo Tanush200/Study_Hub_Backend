@@ -6,6 +6,7 @@ const commentRoutes = require("./routes/comments");
 const followRoutes = require("./routes/follow");
 const userRoutes = require("./routes/users");
 const Bookmark = require("./routes/bookmark");
+const forumRoutes = require("./routes/forum");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -26,6 +27,7 @@ app.use("/api/follow", followRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/bookmarks", Bookmark)
 app.use("/api/gamification", require("./routes/gamification"));
+app.use("/api/forum", forumRoutes); 
 
 mongoose
   .connect(process.env.MONGODB_URI)
