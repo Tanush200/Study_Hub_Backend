@@ -728,4 +728,157 @@ router.get("/stats", async (req, res) => {
   }
 });
 
+// backend/routes/forum.js - Add these delete routes
+
+// Delete a question (author or admin only)
+router.delete("/questions/:id", auth, async (req, res) => {
+  try {
+    const questionId = req.params.id;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    console.log(`🗑️ Delete request for question ${questionId} by user ${userId}`);
+
+    // Find the question
+    const question = await Question.findById(questionId);
+    if (!question) {
+      return res.status(404).json({ message: "Question not found" });
+    }
+
+    // Check permissions - author or admin can delete
+    const isAuthor = question.authorId.toString() === userId;
+    const isAdmin = userRole === 'admin';
+    
+    if (!isAuthor && !isAdmin) {
+      return res.status(403).json({ 
+        message: "You can only delete your own questions" 
+      });
+    }
+
+    // Soft delete - mark as deleted instead of removing
+    await Question.findByIdAndUpdate(questionId, {
+      isDeleted: true,
+      deletedAt: new Date(),
+      deletedBy: userId
+    });
+
+    // Also soft delete all associated answers
+    await Answer.updateMany(
+      { questionId: questionId },
+      { 
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: userId
+      }
+    );
+
+    console.log(`✅ Question ${questionId} deleted successfully`);
+
+    res.json({ 
+      message: "Question deleted successfully",
+      questionId 
+    });
+  } catch (error) {
+    console.error("Delete question error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Delete an answer (author or admin only)
+router.delete("/answers/:id", auth, async (req, res) => {
+  try {
+    const answerId = req.params.id;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    console.log(`🗑️ Delete request for answer ${answerId} by user ${userId}`);
+
+    // Find the answer
+    const answer = await Answer.findById(answerId);
+    if (!answer) {
+      return res.status(404).json({ message: "Answer not found" });
+    }
+
+    // Check permissions - author or admin can delete
+    const isAuthor = answer.authorId.toString() === userId;
+    const isAdmin = userRole === 'admin';
+    
+    if (!isAuthor && !isAdmin) {
+      return res.status(403).json({ 
+        message: "You can only delete your own answers" 
+      });
+    }
+
+    // Soft delete the answer
+    await Answer.findByIdAndUpdate(answerId, {
+      isDeleted: true,
+      deletedAt: new Date(),
+      deletedBy: userId
+    });
+
+    // Decrease question answer count
+    await Question.findByIdAndUpdate(answer.questionId, {
+      $inc: { answerCount: -1 }
+    });
+
+    console.log(`✅ Answer ${answerId} deleted successfully`);
+
+    res.json({ 
+      message: "Answer deleted successfully",
+      answerId 
+    });
+  } catch (error) {
+    console.error("Delete answer error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Get user's questions (for management)
+router.get("/my-questions", auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { includeDeleted = false } = req.query;
+
+    let query = { authorId: userId };
+    if (!includeDeleted) {
+      query.isDeleted = false;
+    }
+
+    const questions = await Question.find(query)
+      .populate("authorId", "username profile")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json(questions);
+  } catch (error) {
+    console.error("Get my questions error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Get user's answers (for management)
+router.get("/my-answers", auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { includeDeleted = false } = req.query;
+
+    let query = { authorId: userId };
+    if (!includeDeleted) {
+      query.isDeleted = false;
+    }
+
+    const answers = await Answer.find(query)
+      .populate("authorId", "username profile")
+      .populate("questionId", "title")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json(answers);
+  } catch (error) {
+    console.error("Get my answers error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
 module.exports = router;

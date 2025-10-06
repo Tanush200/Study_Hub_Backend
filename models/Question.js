@@ -180,12 +180,14 @@ const questionSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    
+
     // ✅ Add field to track who viewed the question
-    viewedBy: [{
-      type: String // Will store user IDs or IP addresses
-    }],
-    
+    viewedBy: [
+      {
+        type: String, // Will store user IDs or IP addresses
+      },
+    ],
+
     upvotes: {
       type: Number,
       default: 0,
@@ -234,6 +236,19 @@ const questionSchema = new mongoose.Schema(
     isDeleted: {
       type: Boolean,
       default: false,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+
+    // ✅ Add these new fields
+    deletedAt: {
+      type: Date,
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
   },
   {
