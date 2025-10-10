@@ -1,4 +1,4 @@
-// backend/models/Answer.js
+
 const mongoose = require("mongoose");
 
 const answerSchema = new mongoose.Schema(
@@ -9,7 +9,7 @@ const answerSchema = new mongoose.Schema(
       maxlength: 3000,
     },
 
-    // References
+
     questionId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Question",
@@ -21,13 +21,13 @@ const answerSchema = new mongoose.Schema(
       required: true,
     },
 
-    // Parent answer for nested replies
+    
     parentAnswerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Answer",
     },
 
-    // Voting System
+
     upvotes: {
       type: Number,
       default: 0,
@@ -49,13 +49,13 @@ const answerSchema = new mongoose.Schema(
       },
     ],
 
-    // Answer Quality
+
     isAccepted: {
       type: Boolean,
       default: false,
     },
 
-    // Additional Features
+    
     attachments: [
       {
         filename: String,
@@ -87,7 +87,7 @@ const answerSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
+
 answerSchema.index({ questionId: 1, createdAt: -1 });
 answerSchema.index({ authorId: 1 });
 answerSchema.index({ upvotes: -1 });
