@@ -49,6 +49,15 @@ const roomSchema = new mongoose.Schema(
                 tool: String,
             },
         ],
+        todoList: [
+            {
+                text: String,
+                completed: {
+                    type: Boolean,
+                    default: false,
+                },
+            },
+        ],
     },
     {
         timestamps: true,
