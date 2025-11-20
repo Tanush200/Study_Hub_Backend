@@ -442,17 +442,17 @@ router.get("/questions/:id", async (req, res) => {
   try {
     const questionId = req.params.id;
     console.log('🔍 Getting question:', questionId);
-    
+
     // Check if questionId is valid ObjectId format
     if (!questionId.match(/^[0-9a-fA-F]{24}$/)) {
       console.log('❌ Invalid question ID format');
       return res.status(404).json({ message: "Invalid question ID" });
     }
-    
+
     // Find question first without incrementing views
     const question = await Question.findById(questionId)
       .populate("authorId", "username profile xp level");
-      
+
     if (!question || question.isDeleted) {
       console.log('❌ Question not found');
       return res.status(404).json({ message: "Question not found" });
@@ -467,38 +467,38 @@ router.get("/questions/:id", async (req, res) => {
     console.log('👤 Viewer ID:', viewerId);
     console.log('🔐 User from auth:', req.user);
     console.log('🌐 IP address:', req.ip);
-    
+
     // Initialize viewedBy array if it doesn't exist
     if (!question.viewedBy) {
       console.log('🔧 Initializing viewedBy array');
       question.viewedBy = [];
     }
-    
+
     // Check if this viewer has already seen this question
     const hasViewed = question.viewedBy.some(viewer => viewer === String(viewerId));
     console.log('👁️ Has viewed before:', hasViewed);
-    
+
     if (!hasViewed) {
       console.log(`🆕 New view from: ${viewerId}`);
-      
+
       try {
         // Increment view count and add viewer
         const updateResult = await Question.findByIdAndUpdate(
-          questionId, 
+          questionId,
           {
             $inc: { views: 1 },
             $push: { viewedBy: String(viewerId) }
           },
           { new: true }
         );
-        
+
         console.log('✅ Update result views:', updateResult.views);
         console.log('✅ Update result viewedBy:', updateResult.viewedBy);
-        
+
         // Update local question object for response
         question.views = updateResult.views;
         question.viewedBy = updateResult.viewedBy;
-        
+
       } catch (updateError) {
         console.error('❌ Error updating views:', updateError);
       }
@@ -534,26 +534,45 @@ router.post("/questions/:id/vote", auth, async (req, res) => {
     const questionId = req.params.id;
     const userId = req.user.id;
 
+    console.log('🗳️ Vote request:', {
+      voteType,
+      questionId,
+      userId,
+      userIdType: typeof userId
+    });
+
     const question = await Question.findById(questionId);
     if (!question) {
       return res.status(404).json({ message: "Question not found" });
     }
 
-    // Remove previous vote if exists
-    const hadUpvote = question.upvotedBy.includes(userId);
-    const hadDownvote = question.downvotedBy.includes(userId);
+    console.log('📊 Current vote state:', {
+      upvotes: question.upvotes,
+      downvotes: question.downvotes,
+      upvotedBy: question.upvotedBy.map(id => id.toString()),
+      downvotedBy: question.downvotedBy.map(id => id.toString())
+    });
+
+    // Remove previous vote if exists (use proper ObjectId comparison)
+    const hadUpvote = question.upvotedBy.some(id => id.toString() === userId);
+    const hadDownvote = question.downvotedBy.some(id => id.toString() === userId);
+
+    console.log('✅ Vote check:', { hadUpvote, hadDownvote });
 
     if (hadUpvote) {
+      console.log('🔄 Removing previous upvote');
       question.upvotedBy.pull(userId);
       question.upvotes = Math.max(0, question.upvotes - 1);
     }
     if (hadDownvote) {
+      console.log('🔄 Removing previous downvote');
       question.downvotedBy.pull(userId);
       question.downvotes = Math.max(0, question.downvotes - 1);
     }
 
     // Add new vote if different from previous
     if (voteType === "upvote" && !hadUpvote) {
+      console.log('➕ Adding upvote');
       question.upvotedBy.push(userId);
       question.upvotes += 1;
 
@@ -568,20 +587,34 @@ router.post("/questions/:id/vote", auth, async (req, res) => {
         );
       }
     } else if (voteType === "downvote" && !hadDownvote) {
+      console.log('➖ Adding downvote');
       question.downvotedBy.push(userId);
       question.downvotes += 1;
     }
 
-    await question.save();
-    res.json({
+    console.log('💾 Saving with new state:', {
       upvotes: question.upvotes,
       downvotes: question.downvotes,
+      upvotedBy: question.upvotedBy.map(id => id.toString()),
+      downvotedBy: question.downvotedBy.map(id => id.toString())
     });
+
+    await question.save();
+
+    const response = {
+      upvotes: question.upvotes,
+      downvotes: question.downvotes,
+    };
+
+    console.log('📤 Sending response:', response);
+
+    res.json(response);
   } catch (error) {
     console.error("Vote question error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 // Create answer for a question
 router.post("/questions/:id/answers", auth, async (req, res) => {
@@ -636,26 +669,45 @@ router.post("/answers/:id/vote", auth, async (req, res) => {
     const answerId = req.params.id;
     const userId = req.user.id;
 
+    console.log('🗳️ Answer vote request:', {
+      voteType,
+      answerId,
+      userId,
+      userIdType: typeof userId
+    });
+
     const answer = await Answer.findById(answerId);
     if (!answer) {
       return res.status(404).json({ message: "Answer not found" });
     }
 
-    // Remove previous vote if exists
-    const hadUpvote = answer.upvotedBy.includes(userId);
-    const hadDownvote = answer.downvotedBy.includes(userId);
+    console.log('📊 Current answer vote state:', {
+      upvotes: answer.upvotes,
+      downvotes: answer.downvotes,
+      upvotedBy: answer.upvotedBy.map(id => id.toString()),
+      downvotedBy: answer.downvotedBy.map(id => id.toString())
+    });
+
+    // Remove previous vote if exists (use proper ObjectId comparison)
+    const hadUpvote = answer.upvotedBy.some(id => id.toString() === userId);
+    const hadDownvote = answer.downvotedBy.some(id => id.toString() === userId);
+
+    console.log('✅ Answer vote check:', { hadUpvote, hadDownvote });
 
     if (hadUpvote) {
+      console.log('🔄 Removing previous upvote from answer');
       answer.upvotedBy.pull(userId);
       answer.upvotes = Math.max(0, answer.upvotes - 1);
     }
     if (hadDownvote) {
+      console.log('🔄 Removing previous downvote from answer');
       answer.downvotedBy.pull(userId);
       answer.downvotes = Math.max(0, answer.downvotes - 1);
     }
 
     // Add new vote if different from previous
     if (voteType === "upvote" && !hadUpvote) {
+      console.log('➕ Adding upvote to answer');
       answer.upvotedBy.push(userId);
       answer.upvotes += 1;
 
@@ -670,20 +722,34 @@ router.post("/answers/:id/vote", auth, async (req, res) => {
         );
       }
     } else if (voteType === "downvote" && !hadDownvote) {
+      console.log('➖ Adding downvote to answer');
       answer.downvotedBy.push(userId);
       answer.downvotes += 1;
     }
 
-    await answer.save();
-    res.json({
+    console.log('💾 Saving answer with new state:', {
       upvotes: answer.upvotes,
       downvotes: answer.downvotes,
+      upvotedBy: answer.upvotedBy.map(id => id.toString()),
+      downvotedBy: answer.downvotedBy.map(id => id.toString())
     });
+
+    await answer.save();
+
+    const response = {
+      upvotes: answer.upvotes,
+      downvotes: answer.downvotes,
+    };
+
+    console.log('📤 Sending answer vote response:', response);
+
+    res.json(response);
   } catch (error) {
     console.error("Vote answer error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 // Get forum statistics
 router.get("/stats", async (req, res) => {
@@ -748,10 +814,10 @@ router.delete("/questions/:id", auth, async (req, res) => {
     // Check permissions - author or admin can delete
     const isAuthor = question.authorId.toString() === userId;
     const isAdmin = userRole === 'admin';
-    
+
     if (!isAuthor && !isAdmin) {
-      return res.status(403).json({ 
-        message: "You can only delete your own questions" 
+      return res.status(403).json({
+        message: "You can only delete your own questions"
       });
     }
 
@@ -765,7 +831,7 @@ router.delete("/questions/:id", auth, async (req, res) => {
     // Also soft delete all associated answers
     await Answer.updateMany(
       { questionId: questionId },
-      { 
+      {
         isDeleted: true,
         deletedAt: new Date(),
         deletedBy: userId
@@ -774,9 +840,9 @@ router.delete("/questions/:id", auth, async (req, res) => {
 
     console.log(`✅ Question ${questionId} deleted successfully`);
 
-    res.json({ 
+    res.json({
       message: "Question deleted successfully",
-      questionId 
+      questionId
     });
   } catch (error) {
     console.error("Delete question error:", error);
@@ -802,10 +868,10 @@ router.delete("/answers/:id", auth, async (req, res) => {
     // Check permissions - author or admin can delete
     const isAuthor = answer.authorId.toString() === userId;
     const isAdmin = userRole === 'admin';
-    
+
     if (!isAuthor && !isAdmin) {
-      return res.status(403).json({ 
-        message: "You can only delete your own answers" 
+      return res.status(403).json({
+        message: "You can only delete your own answers"
       });
     }
 
@@ -823,9 +889,9 @@ router.delete("/answers/:id", auth, async (req, res) => {
 
     console.log(`✅ Answer ${answerId} deleted successfully`);
 
-    res.json({ 
+    res.json({
       message: "Answer deleted successfully",
-      answerId 
+      answerId
     });
   } catch (error) {
     console.error("Delete answer error:", error);
