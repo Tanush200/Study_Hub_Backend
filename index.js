@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
+const rateLimit = require("express-rate-limit");
 require("dotenv").config();
 
 // Import routes
@@ -41,8 +42,38 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// ==================== Rate Limiting ====================
+// General API rate limiter - 100 requests per 15 minutes
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: {
+    error: 'Too many requests from this IP, please try again later.',
+    retryAfter: '15 minutes'
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
+// Strict rate limiter for authentication routes - 5 attempts per 15 minutes
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 requests per windowMs
+  message: {
+    error: 'Too many login/registration attempts, please try again later.',
+    retryAfter: '15 minutes'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Skip successful requests (only count failed attempts)
+  skipSuccessfulRequests: false,
+});
+
+// Apply general rate limiting to all API routes
+app.use('/api/', apiLimiter);
 
 // ==================== Socket.io Setup ====================
 const io = new Server(server, {
@@ -107,8 +138,114 @@ io.on("connection", (socket) => {
     socket.emit("all_users", usersInRoom);
   });
 
-  // ... (rest of events)
+  // ==================== Chat Message Events ====================
+  socket.on("send_message", async (data) => {
+    try {
+      const { roomId, sender, message, time } = data;
 
+      // Save message to database
+      await Room.findOneAndUpdate(
+        { roomId },
+        { $push: { messages: { sender, message, time } } }
+      );
+
+      // Broadcast message to all users in the room
+      io.to(roomId).emit("receive_message", { sender, message, time });
+    } catch (err) {
+      console.error("Error sending message:", err);
+    }
+  });
+
+  // ==================== Todo List Events ====================
+  socket.on("add_todo", async (data) => {
+    try {
+      const { roomId, text } = data;
+
+      const room = await Room.findOneAndUpdate(
+        { roomId },
+        { $push: { todoList: { text, completed: false } } },
+        { new: true }
+      );
+
+      // Broadcast updated todo list to all users
+      io.to(roomId).emit("todo_updated", room.todoList);
+    } catch (err) {
+      console.error("Error adding todo:", err);
+    }
+  });
+
+  socket.on("toggle_todo", async (data) => {
+    try {
+      const { roomId, todoId } = data;
+
+      const room = await Room.findOne({ roomId });
+      const todo = room.todoList.id(todoId);
+
+      if (todo) {
+        todo.completed = !todo.completed;
+        await room.save();
+
+        // Broadcast updated todo list to all users
+        io.to(roomId).emit("todo_updated", room.todoList);
+      }
+    } catch (err) {
+      console.error("Error toggling todo:", err);
+    }
+  });
+
+  socket.on("delete_todo", async (data) => {
+    try {
+      const { roomId, todoId } = data;
+
+      const room = await Room.findOneAndUpdate(
+        { roomId },
+        { $pull: { todoList: { _id: todoId } } },
+        { new: true }
+      );
+
+      // Broadcast updated todo list to all users
+      io.to(roomId).emit("todo_updated", room.todoList);
+    } catch (err) {
+      console.error("Error deleting todo:", err);
+    }
+  });
+
+  // ==================== Whiteboard Events ====================
+  socket.on("drawing", async (data) => {
+    try {
+      const { roomId, x0, y0, x1, y1, color, size, tool } = data;
+
+      // Save drawing to database
+      await Room.findOneAndUpdate(
+        { roomId },
+        { $push: { whiteboardData: { x0, y0, x1, y1, color, size, tool } } }
+      );
+
+      // Broadcast drawing to other users in the room
+      socket.to(roomId).emit("drawing", data);
+    } catch (err) {
+      console.error("Error saving drawing:", err);
+    }
+  });
+
+  socket.on("clear-canvas", async (data) => {
+    try {
+      const { roomId } = data;
+
+      // Clear whiteboard data in database
+      await Room.findOneAndUpdate(
+        { roomId },
+        { $set: { whiteboardData: [] } }
+      );
+
+      // Broadcast clear to all users in the room
+      io.to(roomId).emit("clear-canvas");
+    } catch (err) {
+      console.error("Error clearing canvas:", err);
+    }
+  });
+
+  // ==================== Room Events ====================
   socket.on("leave_room", async (roomId) => {
     socket.leave(roomId);
     await updateRoomUserCount(roomId);
@@ -140,7 +277,8 @@ io.on("connection", (socket) => {
 });
 
 // ==================== Routes ====================
-app.use("/api/auth", require("./routes/auth"));
+// Apply strict rate limiting to auth routes
+app.use("/api/auth", authLimiter, require("./routes/auth"));
 app.use("/api/notes", require("./routes/notes"));
 app.use("/api/health", require("./routes/health"));
 app.use("/api", commentRoutes);
