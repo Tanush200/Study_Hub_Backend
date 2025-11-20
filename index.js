@@ -72,8 +72,8 @@ const authLimiter = rateLimit({
   skipSuccessfulRequests: false,
 });
 
-// Apply general rate limiting to all API routes
-app.use('/api/', apiLimiter);
+// Apply general rate limiting to all API routes (moved after route registration)
+// app.use('/api/', apiLimiter);
 
 // ==================== Socket.io Setup ====================
 const io = new Server(server, {
@@ -245,21 +245,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ==================== WebRTC Video Chat Events ====================
-  socket.on("sending_signal", (payload) => {
-    io.to(payload.userToSignal).emit("user_joined_signal", {
-      signal: payload.signal,
-      callerID: payload.callerID,
-    });
-  });
-
-  socket.on("returning_signal", (payload) => {
-    io.to(payload.callerID).emit("receiving_returned_signal", {
-      signal: payload.signal,
-      id: socket.id,
-    });
-  });
-
   // ==================== Room Events ====================
   socket.on("leave_room", async (roomId) => {
     socket.leave(roomId);
@@ -303,6 +288,7 @@ app.use("/api/bookmarks", Bookmark);
 app.use("/api/gamification", require("./routes/gamification"));
 app.use("/api/forum", forumRoutes);
 app.use("/api/rooms", roomRoutes);
+app.use("/api/groups", require("./routes/groups"));
 
 // ==================== Database Connection ====================
 mongoose
