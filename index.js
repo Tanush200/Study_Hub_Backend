@@ -245,6 +245,21 @@ io.on("connection", (socket) => {
     }
   });
 
+  // ==================== WebRTC Video Chat Events ====================
+  socket.on("sending_signal", (payload) => {
+    io.to(payload.userToSignal).emit("user_joined_signal", {
+      signal: payload.signal,
+      callerID: payload.callerID,
+    });
+  });
+
+  socket.on("returning_signal", (payload) => {
+    io.to(payload.callerID).emit("receiving_returned_signal", {
+      signal: payload.signal,
+      id: socket.id,
+    });
+  });
+
   // ==================== Room Events ====================
   socket.on("leave_room", async (roomId) => {
     socket.leave(roomId);
