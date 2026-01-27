@@ -42,6 +42,10 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Use raw body for webhook route
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -289,6 +293,7 @@ app.use("/api/gamification", require("./routes/gamification"));
 app.use("/api/forum", forumRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/groups", require("./routes/groups"));
+app.use("/api/payments", require("./routes/payments"))
 
 // ==================== Database Connection ====================
 mongoose

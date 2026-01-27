@@ -342,6 +342,7 @@ const Answer = require("../models/Answer");
 const User = require("../models/User");
 const XPService = require("../services/xpService");
 const auth = require("../middleware/auth");
+const { checkQuestionLimit } = require('../middleware/subscriptionMiddleware');
 
 // Get all questions with filters
 router.get("/questions", async (req, res) => {
@@ -403,7 +404,7 @@ router.get("/questions", async (req, res) => {
 });
 
 // Create a new question
-router.post("/questions", auth, async (req, res) => {
+router.post("/questions", checkQuestionLimit, auth, async (req, res) => {
   try {
     const { title, content, category, tags } = req.body;
 

@@ -161,7 +161,7 @@
 //       },
 //     ],
 
-    
+
 
 //     followers: [
 //       {
@@ -367,6 +367,31 @@ const userSchema = new mongoose.Schema(
 
     isActive: { type: Boolean, default: true },
     lastLogin: Date,
+    subscription: {
+      tier: {
+        type: String,
+        enum: ['free', 'pro', 'premium'],
+        default: 'free'
+      },
+      status: {
+        type: String,
+        enum: ['active', 'cancelled', 'expired', 'past_due'],
+        default: 'active'
+      },
+      dodoSubscriptionId: String,
+      dodoCustomerId: String,
+      currentPeriodStart: Date,
+      currentPeriodEnd: Date,
+      cancelAtPeriodEnd: { type: Boolean, default: false },
+
+    },
+    usage: {
+      notesDownloadedToday: { type: Number, default: 0 },
+      questionsAskedToday: { type: Number, default: 0 },
+      lastResetDate: { type: Date, default: Date.now },
+      privateRoomsThisMonth: { type: Number, default: 0 },
+      lastMonthReset: { type: Date, default: Date.now }
+    }
   },
   {
     timestamps: true,
@@ -406,10 +431,53 @@ userSchema.virtual("levelProgress").get(function () {
 });
 
 
+userSchema.methods.isPremium = function () {
+  return this.subscription.tier === 'premium' && this.subscription.status === 'active';
+}
+
+userSchema.methods.isPro = function () {
+  return this.subscription.tier === 'pro' || this.subscription.tier === 'premium' && this.subscription.status === 'active';
+}
+
+userSchema.methods.canDownloadNote = function () {
+  if (this.isPro()) return true;
+
+  const today = new Date().toDateString();
+  const lastReset = new Date(this.usage.lastResetDate).toDateString();
+
+  if (today !== lastReset) {
+    this.usage.notesDownloadedToday = 0;
+    this.usage.lastResetDate = new Date();
+  }
+
+  return this.usage.notesDownloadedToday < 5;
+
+}
+
+userSchema.methods.canAskQuestion = function () {
+  if (this.isPro()) return true;
+
+
+  const today = new Date().toDateString();
+  const lastReset = new Date(this.usage.lastResetDate).toDateString();
+
+  if (today !== lastReset) {
+    this.usage.questionsAskedToday = 0;
+    this.usage.lastResetDate = new Date();
+  }
+
+  return this.usage.questionsAskedToday < 2;
+};
+
+userSchema.methods.getXPMultiplier = function () {
+  return this.isPremium() ? 2 : 1
+}
+
+
 userSchema.index({ followers: 1 });
 userSchema.index({ following: 1 });
-userSchema.index({ "stats.followersCount": -1 }); 
-userSchema.index({ "stats.reputation": -1 }); 
+userSchema.index({ "stats.followersCount": -1 });
+userSchema.index({ "stats.reputation": -1 });
 userSchema.index({ lastLogin: -1 });
 
 module.exports = mongoose.model("User", userSchema);

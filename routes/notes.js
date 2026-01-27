@@ -2,7 +2,8 @@ const express = require("express");
 const Note = require("../models/Note");
 const User = require("../models/User");
 const fileOwnership = require("../middleware/fileOwnership");
-const imagekit = require("../utils/imagekit"); 
+const { checkNoteDownloadLimit } = require('../middleware/subscriptionMiddleware');
+const imagekit = require("../utils/imagekit");
 const XPService = require("../services/xpService");
 const {
   uploadNote,
@@ -88,7 +89,7 @@ router.patch("/:id/reject", authMiddleware, adminAuth, async (req, res) => {
   }
 });
 
-router.patch("/:id/view", authMiddleware, async (req, res) => {
+router.patch("/:id/view", authMiddleware, checkNoteDownloadLimit, async (req, res) => {
   try {
     const note = await Note.findByIdAndUpdate(
       req.params.id,
@@ -209,7 +210,7 @@ router.delete("/:id", authMiddleware, fileOwnership, async (req, res) => {
         console.log(`Deleted file from ImageKit: ${note.file.imagekitId}`);
       } catch (fileError) {
         console.error("Error deleting file from ImageKit:", fileError);
-   
+
       }
     }
 
