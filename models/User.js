@@ -387,6 +387,8 @@ const userSchema = new mongoose.Schema(
     },
     usage: {
       notesDownloadedToday: { type: Number, default: 0 },
+      totalNotesDownloaded: { type: Number, default: 0 }, // For Free tier lifetime limit
+      notesUploadedToday: { type: Number, default: 0 }, // For Pro tier daily limit
       questionsAskedToday: { type: Number, default: 0 },
       lastResetDate: { type: Date, default: Date.now },
       privateRoomsThisMonth: { type: Number, default: 0 },
@@ -436,22 +438,49 @@ userSchema.methods.isPremium = function () {
 }
 
 userSchema.methods.isPro = function () {
-  return this.subscription.tier === 'pro' || this.subscription.tier === 'premium' && this.subscription.status === 'active';
+  return (this.subscription.tier === 'pro' || this.subscription.tier === 'premium') && this.subscription.status === 'active';
 }
 
 userSchema.methods.canDownloadNote = function () {
-  if (this.isPro()) return true;
+  if (this.isPremium()) return true;
 
-  const today = new Date().toDateString();
-  const lastReset = new Date(this.usage.lastResetDate).toDateString();
+  if (this.isPro()) {
+    // Pro: 10 notes per day
+    const today = new Date().toDateString();
+    const lastReset = new Date(this.usage.lastResetDate).toDateString();
 
-  if (today !== lastReset) {
-    this.usage.notesDownloadedToday = 0;
-    this.usage.lastResetDate = new Date();
+    if (today !== lastReset) {
+      this.usage.notesDownloadedToday = 0;
+      this.usage.notesUploadedToday = 0; // Reset upload count too
+      this.usage.questionsAskedToday = 0; // Reset question count too
+      this.usage.lastResetDate = new Date();
+    }
+    return this.usage.notesDownloadedToday < 10;
   }
 
-  return this.usage.notesDownloadedToday < 5;
+  // Free: 5 notes lifetime
+  return this.usage.totalNotesDownloaded < 5;
+}
 
+userSchema.methods.canUploadNote = function () {
+  if (this.isPremium()) return true;
+
+  if (this.isPro()) {
+    // Pro: 5 notes per day
+    const today = new Date().toDateString();
+    const lastReset = new Date(this.usage.lastResetDate).toDateString();
+
+    if (today !== lastReset) {
+      this.usage.notesDownloadedToday = 0;
+      this.usage.notesUploadedToday = 0;
+      this.usage.questionsAskedToday = 0;
+      this.usage.lastResetDate = new Date();
+    }
+    return this.usage.notesUploadedToday < 5;
+  }
+
+  // Free: 5 notes lifetime
+  return this.stats.notesUploaded < 5;
 }
 
 userSchema.methods.canAskQuestion = function () {
@@ -463,6 +492,8 @@ userSchema.methods.canAskQuestion = function () {
 
   if (today !== lastReset) {
     this.usage.questionsAskedToday = 0;
+    this.usage.notesDownloadedToday = 0; // Ensure all daily counters reset
+    this.usage.notesUploadedToday = 0;
     this.usage.lastResetDate = new Date();
   }
 

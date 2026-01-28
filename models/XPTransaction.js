@@ -12,6 +12,7 @@ const xpTransactionSchema = new mongoose.Schema(
       type: String,
       enum: [
         "upload",
+        "UPLOAD_NOTE",
         "review",
         "comment",
         "bookmark",

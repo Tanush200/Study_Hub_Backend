@@ -32,27 +32,12 @@ const noteSchema = new mongoose.Schema(
 
 
     file: {
-      imagekitId: String,
+      s3Key: String,
       originalName: String,
       fileUrl: String,
       fileType: String,
       fileSize: Number,
       thumbnail: String,
-
-  
-      height: Number, 
-      width: Number, 
-      format: String, 
-      versionInfo: {
-   
-        id: String,
-        name: String,
-      },
-      AITags: [String], 
-      isPrivateFile: {
-        type: Boolean,
-        default: false,
-      },
     },
 
     metadata: {
@@ -73,9 +58,9 @@ const noteSchema = new mongoose.Schema(
         },
       ],
       averageRating: { type: Number, default: 0 },
-      tags: [String], 
+      tags: [String],
 
-      lastViewedAt: Date, 
+      lastViewedAt: Date,
       downloadCount: { type: Number, default: 0 },
       shareCount: { type: Number, default: 0 },
     },
@@ -102,10 +87,10 @@ const noteSchema = new mongoose.Schema(
 
 noteSchema.index({ "metadata.likedBy": 1 });
 noteSchema.index({ "metadata.dislikedBy": 1 });
-noteSchema.index({ "file.imagekitId": 1 });
-noteSchema.index({ "file.format": 1 }); 
-noteSchema.index({ "metadata.lastViewedAt": -1 }); 
-noteSchema.index({ status: 1, createdAt: -1 }); 
+noteSchema.index({ "file.s3Key": 1 });
+noteSchema.index({ "file.format": 1 });
+noteSchema.index({ "metadata.lastViewedAt": -1 });
+noteSchema.index({ status: 1, createdAt: -1 });
 
 
 noteSchema.virtual("metadata.totalInteractions").get(function () {
@@ -114,7 +99,7 @@ noteSchema.virtual("metadata.totalInteractions").get(function () {
 
 
 noteSchema.pre("save", function (next) {
-  if (this.isNew && !this.file.imagekitId) {
+  if (this.isNew && !this.file.s3Key) {
     this.processingStatus = "processing";
   }
   next();

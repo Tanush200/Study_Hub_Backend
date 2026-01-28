@@ -2,8 +2,8 @@ const express = require("express");
 const Note = require("../models/Note");
 const User = require("../models/User");
 const fileOwnership = require("../middleware/fileOwnership");
-const { checkNoteDownloadLimit } = require('../middleware/subscriptionMiddleware');
-const imagekit = require("../utils/imagekit");
+const { checkNoteDownloadLimit, checkNoteUploadLimit } = require('../middleware/subscriptionMiddleware');
+const { deleteFromS3 } = require("../controllers/noteController");
 const XPService = require("../services/xpService");
 const {
   uploadNote,
@@ -17,7 +17,7 @@ const router = express.Router();
 
 
 router.get("/", getNotes);
-router.post("/upload", authMiddleware, upload.single("file"), uploadNote);
+router.post("/upload", authMiddleware, checkNoteUploadLimit, upload.single("file"), uploadNote);
 router.get("/my-notes", authMiddleware, getMyNotes);
 
 router.get("/pending", authMiddleware, adminAuth, async (req, res) => {
@@ -204,13 +204,12 @@ router.delete("/:id", authMiddleware, fileOwnership, async (req, res) => {
     const note = req.note;
 
 
-    if (note.file?.imagekitId) {
+    if (note.file?.s3Key) {
       try {
-        await imagekit.deleteFile(note.file.imagekitId);
-        console.log(`Deleted file from ImageKit: ${note.file.imagekitId}`);
+        await deleteFromS3(note.file.s3Key);
+        console.log(`Deleted file from S3: ${note.file.s3Key}`);
       } catch (fileError) {
-        console.error("Error deleting file from ImageKit:", fileError);
-
+        console.error("Error deleting file from S3:", fileError);
       }
     }
 

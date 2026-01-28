@@ -281,27 +281,40 @@
 
 
 
-// For ImageKit Integration
+// For S3 Integration
 const Note = require("../models/Note");
 const User = require("../models/User");
 const Comment = require("../models/Comment");
-const imagekit = require("../utils/imagekit");
+const s3Client = require("../utils/s3");
+const { PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const XPService = require("../services/xpService");
 
 
-const uploadToImageKit = async (fileBuffer, fileName, folder = 'study_hub/notes') => {
+const uploadToS3 = async (fileBuffer, fileName, folder = 'study_hub/notes') => {
   try {
-    const response = await imagekit.upload({
-      file: fileBuffer, 
-      fileName: fileName,
-      folder: folder,
-      useUniqueFileName: true,
-      tags: ['studyhub', 'notes']
+    const key = `${folder}/${fileName}`;
+    const command = new PutObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: key,
+      Body: fileBuffer,
+      ContentType: "application/pdf", // Assuming PDF for notes, or detect mime type
+      // ACL: 'public-read' // If bucket is public, otherwise use signed URLs or CloudFront
     });
-    
-    return response;
+
+    await s3Client.send(command);
+
+    // Construct public URL (assuming public bucket access)
+    // If private, you'd generate a signed URL here or just return the key
+    const url = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+
+    return {
+      key,
+      url,
+      fileType: "application/pdf", // You might want to pass mimetype from req.file
+      size: fileBuffer.length
+    };
   } catch (error) {
-    throw new Error(`ImageKit upload failed: ${error.message}`);
+    throw new Error(`S3 upload failed: ${error.message}`);
   }
 };
 
@@ -407,7 +420,7 @@ const uploadToImageKit = async (fileBuffer, fileName, folder = 'study_hub/notes'
 //     await User.findByIdAndDelete(req.user.id, {
 //       $inc: { "stats.notesUploaded": 1 },
 //     });
-      
+
 
 //      res.status(201).json({
 //        message: "Note uploaded successfully",
@@ -447,7 +460,7 @@ const uploadNote = async (req, res) => {
       parsedCategory = { subject: "General", examType: "semester" };
     }
 
-    const uploadResult = await uploadToImageKit(
+    const uploadResult = await uploadToS3(
       req.file.buffer,
       `${Date.now()}_${req.file.originalname}`,
       "study_hub/notes"
@@ -465,21 +478,12 @@ const uploadNote = async (req, res) => {
         university: parsedCategory.university || "",
       },
       file: {
-        imagekitId: uploadResult.fileId,
+        s3Key: uploadResult.key,
         originalName: req.file.originalname,
         fileUrl: uploadResult.url,
-        fileType: uploadResult.fileType,
+        fileType: req.file.mimetype, // Use mimetype from request
         fileSize: uploadResult.size,
-        thumbnail: uploadResult.thumbnailUrl || uploadResult.url,
-        height: uploadResult.height,
-        width: uploadResult.width,
-        format: uploadResult.fileType,
-        versionInfo: {
-          id: uploadResult.versionInfo?.id,
-          name: uploadResult.versionInfo?.name,
-        },
-        AITags: uploadResult.AITags || [],
-        isPrivateFile: uploadResult.isPrivateFile || false,
+        thumbnail: uploadResult.url, // S3 doesn't auto-generate thumbnails like ImageKit. You might need a Lambda for this.
       },
       metadata: {
         views: 0,
@@ -487,7 +491,7 @@ const uploadNote = async (req, res) => {
         likes: 0,
         dislikes: 0,
         averageRating: 0,
-        tags: uploadResult.tags || [],
+        tags: [], // S3 doesn't auto-tag
       },
       status: "pending",
       processingStatus: "completed",
@@ -528,13 +532,13 @@ const uploadNote = async (req, res) => {
 
       gamification: xpResult.success
         ? {
-            xpEarned: xpResult.earnedXP,
-            newXP: xpResult.newXP,
-            newLevel: xpResult.newLevel,
-            leveledUp: xpResult.leveledUp,
-            newBadges: xpResult.newBadges || [],
-            completedChallenges: xpResult.completedChallenges || [],
-          }
+          xpEarned: xpResult.earnedXP,
+          newXP: xpResult.newXP,
+          newLevel: xpResult.newLevel,
+          leveledUp: xpResult.leveledUp,
+          newBadges: xpResult.newBadges || [],
+          completedChallenges: xpResult.completedChallenges || [],
+        }
         : null,
     });
   } catch (error) {
@@ -604,7 +608,7 @@ const getMyNotes = async (req, res) => {
     const userId = req.user._id;
 
     const notes = await Note.find({ uploaderId: userId }).sort({ createdAt: -1 });
-    
+
 
     const noteIds = notes.map(note => note._id);
     const commentCounts = await Comment.aggregate([
@@ -633,20 +637,20 @@ const getMyNotes = async (req, res) => {
 const updateViews = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const note = await Note.findByIdAndUpdate(
       id,
-      { 
+      {
         $inc: { 'metadata.views': 1 },
         $set: { 'metadata.lastViewedAt': new Date() }
       },
       { new: true }
     );
-    
+
     if (!note) {
       return res.status(404).json({ message: 'Note not found' });
     }
-    
+
     res.json({ views: note.metadata.views });
   } catch (error) {
     console.error('Update views error:', error);
@@ -655,12 +659,16 @@ const updateViews = async (req, res) => {
 };
 
 
-const deleteFromImageKit = async (fileId) => {
+const deleteFromS3 = async (key) => {
   try {
-    const result = await imagekit.deleteFile(fileId);
+    const command = new DeleteObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: key,
+    });
+    const result = await s3Client.send(command);
     return result;
   } catch (error) {
-    console.error('ImageKit delete error:', error);
+    console.error('S3 delete error:', error);
     throw error;
   }
 };
@@ -669,7 +677,7 @@ module.exports = {
   uploadNote,
   getNotes,
   getMyNotes,
-  updateViews, 
-  deleteFromImageKit
+  updateViews,
+  deleteFromS3
 };
 

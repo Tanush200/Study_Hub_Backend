@@ -34,19 +34,45 @@ exports.checkNoteDownloadLimit = async (req, res, next) => {
     try {
         const user = await User.findById(req.user.id);
 
-        if (user.isPro()) {
-            return next();
-        }
-
-
         if (!user.canDownloadNote()) {
+            const message = user.isPro()
+                ? 'Daily download limit reached (10 notes/day). Upgrade to Premium for unlimited downloads.'
+                : 'Lifetime download limit reached (5 notes). Upgrade to Pro for daily limits.';
+
             return res.status(403).json({
-                message: 'Daily download limit reached (5 notes/day). Upgrade to Pro for unlimited downloads.',
+                message,
                 code: 'LIMIT_REACHED'
             });
         }
 
         user.usage.notesDownloadedToday += 1;
+        user.usage.totalNotesDownloaded += 1;
+        await user.save();
+
+        next();
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+exports.checkNoteUploadLimit = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.user.id);
+
+        if (!user.canUploadNote()) {
+            const message = user.isPro()
+                ? 'Daily upload limit reached (5 notes/day). Upgrade to Premium for unlimited uploads.'
+                : 'Lifetime upload limit reached (5 notes). Upgrade to Pro for daily limits.';
+
+            return res.status(403).json({
+                message,
+                code: 'LIMIT_REACHED'
+            });
+        }
+
+        user.usage.notesUploadedToday += 1;
+        // stats.notesUploaded is incremented in the controller
+
         await user.save();
 
         next();
