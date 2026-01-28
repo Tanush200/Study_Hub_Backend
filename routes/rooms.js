@@ -3,18 +3,38 @@ const router = express.Router();
 const Room = require("../models/Room");
 const { v4: uuidv4 } = require("uuid");
 const auth = require("../middleware/auth");
+const User = require("../models/User");
 
 const bcrypt = require("bcryptjs");
 
 // @route   POST /api/rooms
 // @desc    Create a new study room
-// @access  Public (or Protected if you add auth middleware)
-router.post("/", async (req, res) => {
+// @access  Private
+router.post("/", auth, async (req, res) => {
     try {
-        const { name, topic, createdBy, password } = req.body;
+        const { name, topic, password } = req.body;
+        const userId = req.user.id;
 
         if (!name) {
             return res.status(400).json({ message: "Room name is required" });
+        }
+
+        // Check user tier and room count
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const roomCount = await Room.countDocuments({ createdBy: userId });
+
+        if (!user.canCreateRoom(roomCount)) {
+            let message = "You have reached your room creation limit.";
+            if (user.subscription.tier === 'free') {
+                message = "Free tier users cannot create rooms. Please upgrade to Pro or Premium.";
+            } else if (user.subscription.tier === 'pro') {
+                message = "Pro tier users can only create 20 rooms lifetime. Please upgrade to Premium for unlimited rooms.";
+            }
+            return res.status(403).json({ message });
         }
 
         // Generate a unique roomId (short enough to be shareable, or use uuid)
@@ -33,7 +53,7 @@ router.post("/", async (req, res) => {
             roomId,
             name,
             topic: topic || "General Study",
-            createdBy: createdBy || null,
+            createdBy: userId,
             isPrivate,
             password: hashedPassword,
         });

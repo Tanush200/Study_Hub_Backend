@@ -500,6 +500,18 @@ userSchema.methods.canAskQuestion = function () {
   return this.usage.questionsAskedToday < 2;
 };
 
+userSchema.methods.canCreateRoom = function (roomCount) {
+  if (this.isPremium()) return true;
+
+  if (this.isPro()) {
+    // Pro: 20 rooms lifetime
+    return roomCount < 20;
+  }
+
+  // Free: 0 rooms
+  return false;
+};
+
 userSchema.methods.getXPMultiplier = function () {
   return this.isPremium() ? 2 : 1
 }
