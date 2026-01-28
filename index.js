@@ -129,6 +129,11 @@ io.on("connection", (socket) => {
       if (room && room.todoList) {
         socket.emit("load_todos", room.todoList);
       }
+
+      // Send Notes
+      if (room && room.notes) {
+        socket.emit("receive_notes", room.notes);
+      }
     } catch (err) {
       console.error("Error fetching room data:", err);
     }
@@ -140,6 +145,21 @@ io.on("connection", (socket) => {
     const sockets = await io.in(roomId).fetchSockets();
     const usersInRoom = sockets.map(s => s.id).filter(id => id !== socket.id);
     socket.emit("all_users", usersInRoom);
+  });
+
+  // ==================== Note Events ====================
+  socket.on("update_notes", async (data) => {
+    try {
+      const { roomId, notes } = data;
+
+      // Save to database (debounced in frontend, but good to save here too)
+      await Room.findOneAndUpdate({ roomId }, { notes });
+
+      // Broadcast to other users
+      socket.to(roomId).emit("receive_notes", notes);
+    } catch (err) {
+      console.error("Error updating notes:", err);
+    }
   });
 
   // ==================== Chat Message Events ====================
@@ -249,6 +269,44 @@ io.on("connection", (socket) => {
     }
   });
 
+  // ==================== Voice Chat Events (WebRTC Signaling) ====================
+  socket.on("join_voice", async (roomId) => {
+    try {
+      const sockets = await io.in(roomId).fetchSockets();
+      const users = sockets
+        .filter(s => s.id !== socket.id)
+        .map(s => ({
+          id: s.id,
+          username: s.handshake.query.username || "Anonymous"
+        }));
+      socket.emit("all_voice_users", users);
+    } catch (err) {
+      console.error("Error in join_voice:", err);
+    }
+  });
+
+  socket.on("sending_signal", (payload) => {
+    io.to(payload.userToSignal).emit("user_joined_voice", {
+      signal: payload.signal,
+      callerID: payload.callerID,
+      username: payload.username
+    });
+  });
+
+  socket.on("returning_signal", (payload) => {
+    io.to(payload.callerID).emit("receiving_returned_signal", {
+      signal: payload.signal,
+      id: socket.id
+    });
+  });
+
+  // ==================== Cursor Events ====================
+  socket.on("cursor_move", (data) => {
+    const { roomId, position, username, userId } = data;
+    // Broadcast cursor position to other users in the room
+    socket.to(roomId).emit("cursor_update", { userId, username, position });
+  });
+
   // ==================== Room Events ====================
   socket.on("leave_room", async (roomId) => {
     socket.leave(roomId);
@@ -294,6 +352,7 @@ app.use("/api/forum", forumRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/groups", require("./routes/groups"));
 app.use("/api/payments", require("./routes/payments"))
+app.use("/api/upload", require("./routes/upload"));
 
 // ==================== Database Connection ====================
 mongoose
