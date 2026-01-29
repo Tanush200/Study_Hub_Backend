@@ -404,9 +404,11 @@ router.get("/questions", async (req, res) => {
 });
 
 // Create a new question
-router.post("/questions", checkQuestionLimit, auth, async (req, res) => {
+router.post("/questions", auth, checkQuestionLimit, async (req, res) => {
   try {
-    const { title, content, category, tags } = req.body;
+    const { title, content, category, tags, noteId } = req.body;
+
+    console.log("Creating question with data:", { title, content, category, tags, noteId });
 
     const question = await Question.create({
       title,
@@ -414,6 +416,7 @@ router.post("/questions", checkQuestionLimit, auth, async (req, res) => {
       authorId: req.user.id,
       category,
       tags: tags || [],
+      noteId: noteId || null,
     });
 
     // Award XP for asking a question
@@ -433,7 +436,8 @@ router.post("/questions", checkQuestionLimit, auth, async (req, res) => {
     res.status(201).json(populatedQuestion);
   } catch (error) {
     console.error("Create question error:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error details:", error.message);
+    res.status(500).json({ message: error.message || "Server error" });
   }
 });
 

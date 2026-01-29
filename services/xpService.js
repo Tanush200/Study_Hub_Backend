@@ -169,7 +169,7 @@ class XPService {
       const user = await User.findById(userId);
       const activeDate = new Date();
 
-      const Challenge = require("../models/Challenge");
+      const Challenge = require("../models/Challenges");
       const activeChallenges = await Challenge.find({
         isActive: true,
         startDate: { $lte: activeDate },

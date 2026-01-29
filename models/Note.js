@@ -78,6 +78,11 @@ const noteSchema = new mongoose.Schema(
       enum: ["processing", "completed", "failed"],
       default: "completed",
     },
+    forumPostId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Question",
+      default: null,
+    },
   },
   {
     timestamps: true,

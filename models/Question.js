@@ -60,7 +60,7 @@ const questionSchema = new mongoose.Schema(
 
     viewedBy: [
       {
-        type: String, 
+        type: String,
       },
     ],
 
@@ -125,6 +125,11 @@ const questionSchema = new mongoose.Schema(
     deletedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+    },
+    noteId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Note",
+      default: null,
     },
   },
   {
