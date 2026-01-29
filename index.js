@@ -24,7 +24,8 @@ const allowedDomains = process.env.ALLOWED_ORIGINS
   : [
     "http://localhost:3000",
     "https://study-hub-frontend-three.vercel.app",
-    "https://your-vercel-frontend.vercel.app",
+    "https://notevaultt.org",
+    "https://www.notevaultt.org"
   ];
 
 const corsOptions = {
