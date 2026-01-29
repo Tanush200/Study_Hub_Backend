@@ -393,7 +393,11 @@ const userSchema = new mongoose.Schema(
       lastResetDate: { type: Date, default: Date.now },
       privateRoomsThisMonth: { type: Number, default: 0 },
       lastMonthReset: { type: Date, default: Date.now }
-    }
+    },
+
+    // ✅ Password Reset Fields
+    resetPasswordToken: String,
+    resetPasswordExpire: Date,
   },
   {
     timestamps: true,
@@ -416,6 +420,24 @@ userSchema.pre("save", async function (next) {
 
 userSchema.methods.comparePassword = async function (password) {
   return await bcrypt.compare(password, this.password);
+};
+
+// ✅ Generate Password Reset Token
+const crypto = require('crypto');
+userSchema.methods.getResetPasswordToken = function () {
+  // Generate token
+  const resetToken = crypto.randomBytes(20).toString('hex');
+
+  // Hash token and set to resetPasswordToken field
+  this.resetPasswordToken = crypto
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+
+  // Set expire (10 minutes)
+  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+
+  return resetToken;
 };
 
 userSchema.virtual("calculatedLevel").get(function () {

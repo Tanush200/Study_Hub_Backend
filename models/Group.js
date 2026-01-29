@@ -98,7 +98,7 @@ const groupSchema = new mongoose.Schema(
 );
 
 // Indexes for better query performance
-groupSchema.index({ inviteCode: 1 });
+
 groupSchema.index({ subject: 1, category: 1 });
 groupSchema.index({ isPrivate: 1, isActive: 1 });
 groupSchema.index({ createdBy: 1 });
