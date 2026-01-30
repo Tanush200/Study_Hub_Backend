@@ -44,6 +44,9 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Enable trust proxy for rate limiting behind load balancers (Render, Heroku, etc.)
+app.set('trust proxy', 1);
+
 // Use raw body for webhook route
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 
