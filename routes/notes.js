@@ -89,7 +89,7 @@ router.patch("/:id/reject", authMiddleware, adminAuth, async (req, res) => {
   }
 });
 
-router.patch("/:id/view", authMiddleware, checkNoteDownloadLimit, async (req, res) => {
+router.patch("/:id/view", authMiddleware, async (req, res) => {
   try {
     const note = await Note.findByIdAndUpdate(
       req.params.id,
@@ -105,7 +105,7 @@ router.patch("/:id/view", authMiddleware, checkNoteDownloadLimit, async (req, re
   }
 });
 
-router.patch("/:id/download", authMiddleware, async (req, res) => {
+router.patch("/:id/download", authMiddleware, checkNoteDownloadLimit, async (req, res) => {
   try {
     const note = await Note.findByIdAndUpdate(
       req.params.id,

@@ -464,19 +464,24 @@ userSchema.methods.isPro = function () {
 }
 
 userSchema.methods.canDownloadNote = function () {
-  if (this.isPremium()) return true;
+  // Check for daily reset
+  const today = new Date().toDateString();
+  const lastReset = new Date(this.usage.lastResetDate).toDateString();
+
+  if (today !== lastReset) {
+    this.usage.notesDownloadedToday = 0;
+    this.usage.notesUploadedToday = 0;
+    this.usage.questionsAskedToday = 0;
+    this.usage.lastResetDate = new Date();
+  }
+
+  if (this.isPremium()) {
+    // Premium FUP: 50 notes per day
+    return this.usage.notesDownloadedToday < 50;
+  }
 
   if (this.isPro()) {
     // Pro: 10 notes per day
-    const today = new Date().toDateString();
-    const lastReset = new Date(this.usage.lastResetDate).toDateString();
-
-    if (today !== lastReset) {
-      this.usage.notesDownloadedToday = 0;
-      this.usage.notesUploadedToday = 0; // Reset upload count too
-      this.usage.questionsAskedToday = 0; // Reset question count too
-      this.usage.lastResetDate = new Date();
-    }
     return this.usage.notesDownloadedToday < 10;
   }
 

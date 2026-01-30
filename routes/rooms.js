@@ -105,7 +105,7 @@ router.get("/", async (req, res) => {
     try {
         const rooms = await Room.find()
             .select("-password") // Exclude password from list
-            .sort({ createdAt: -1 });
+            .sort({ activeUsers: -1, createdAt: -1 });
         res.json(rooms);
     } catch (error) {
         console.error("Error fetching rooms:", error);

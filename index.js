@@ -278,7 +278,8 @@ io.on("connection", (socket) => {
         .filter(s => s.id !== socket.id)
         .map(s => ({
           id: s.id,
-          username: s.handshake.query.username || "Anonymous"
+          username: s.handshake.query.username || "Anonymous",
+          handRaised: s.data.handRaised || false
         }));
       socket.emit("all_voice_users", users);
     } catch (err) {
@@ -299,6 +300,17 @@ io.on("connection", (socket) => {
       signal: payload.signal,
       id: socket.id
     });
+  });
+
+  socket.on("send_reaction", (data) => {
+    const { roomId, emoji } = data;
+    io.to(roomId).emit("user_reaction", { userId: socket.id, emoji });
+  });
+
+  socket.on("toggle_hand", (data) => {
+    const { roomId, isRaised } = data;
+    socket.data.handRaised = isRaised;
+    io.to(roomId).emit("user_hand_updated", { userId: socket.id, isRaised });
   });
 
   // ==================== Cursor Events ====================
@@ -355,6 +367,7 @@ app.use("/api/groups", require("./routes/groups"));
 app.use("/api/payments", require("./routes/payments"))
 app.use("/api/upload", require("./routes/upload"));
 app.use("/api/support", require("./routes/support"));
+app.use("/api/reports", require("./routes/reportRoutes"));
 
 // ==================== Database Connection ====================
 mongoose
