@@ -371,6 +371,7 @@ app.use("/api/payments", require("./routes/payments"))
 app.use("/api/upload", require("./routes/upload"));
 app.use("/api/support", require("./routes/support"));
 app.use("/api/reports", require("./routes/reportRoutes"));
+app.use("/api/admin/users", require("./routes/userAdminRoutes"));
 
 // ==================== Database Connection ====================
 mongoose

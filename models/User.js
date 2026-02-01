@@ -395,6 +395,25 @@ const userSchema = new mongoose.Schema(
       lastMonthReset: { type: Date, default: Date.now }
     },
 
+    // ✅ User Blocking Fields
+    isBlocked: {
+      type: Boolean,
+      default: false
+    },
+    blockReason: {
+      type: String
+    },
+    blockedAt: {
+      type: Date
+    },
+    blockedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    blockExpiresAt: {
+      type: Date
+    },
+
     // ✅ Password Reset Fields
     resetPasswordToken: String,
     resetPasswordExpire: Date,
