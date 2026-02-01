@@ -290,14 +290,14 @@ const { PutObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const XPService = require("../services/xpService");
 
 
-const uploadToS3 = async (fileBuffer, fileName, folder = 'study_hub/notes') => {
+const uploadToS3 = async (fileBuffer, fileName, mimeType, folder = 'study_hub/notes') => {
   try {
     const key = `${folder}/${fileName}`;
     const command = new PutObjectCommand({
       Bucket: process.env.AWS_BUCKET_NAME,
       Key: key,
       Body: fileBuffer,
-      ContentType: "application/pdf", // Assuming PDF for notes, or detect mime type
+      ContentType: mimeType || "application/pdf",
       // ACL: 'public-read' // If bucket is public, otherwise use signed URLs or CloudFront
     });
 
@@ -310,7 +310,7 @@ const uploadToS3 = async (fileBuffer, fileName, folder = 'study_hub/notes') => {
     return {
       key,
       url,
-      fileType: "application/pdf", // You might want to pass mimetype from req.file
+      fileType: mimeType,
       size: fileBuffer.length
     };
   } catch (error) {
@@ -463,6 +463,7 @@ const uploadNote = async (req, res) => {
     const uploadResult = await uploadToS3(
       req.file.buffer,
       `${Date.now()}_${req.file.originalname}`,
+      req.file.mimetype,
       "study_hub/notes"
     );
 
