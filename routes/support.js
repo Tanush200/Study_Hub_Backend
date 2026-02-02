@@ -1,5 +1,5 @@
 const express = require("express");
-const { sendEmail } = require("../utils/ses");
+const { sendEmail } = require("../utils/email");
 const router = express.Router();
 
 // @desc    Send Support Email

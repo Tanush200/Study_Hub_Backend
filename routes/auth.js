@@ -88,7 +88,7 @@ router.post("/login", async (req, res) => {
 
 
 const crypto = require("crypto");
-const { sendEmail } = require("../utils/ses");
+const { sendEmail } = require("../utils/email");
 
 // @desc    Forgot Password
 // @route   POST /api/auth/forgot-password
