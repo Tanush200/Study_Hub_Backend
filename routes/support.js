@@ -40,6 +40,20 @@ router.post("/contact", async (req, res) => {
             text: textContent,
         });
 
+        // Send confirmation email to the user
+        await sendEmail({
+            to: email,
+            subject: `We've received your request: ${subject}`,
+            html: `
+              <h1>Hi ${name || "there"},</h1>
+              <p>Thanks for contacting StudyHub support. We have received your message regarding "<strong>${subject}</strong>".</p>
+              <p>Our team will get back to you shortly.</p>
+              <hr />
+              <p style="color: #666; font-size: 12px;">This is an automated message. Please do not reply directly to this email.</p>
+            `,
+            text: `Hi ${name || "there"},\n\nThanks for contacting StudyHub support. We have received your message regarding "${subject}".\n\nOur team will get back to you shortly.`
+        });
+
         res.status(200).json({ message: "Support request sent successfully!" });
     } catch (error) {
         console.error("Support email error:", error);
