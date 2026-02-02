@@ -27,12 +27,14 @@
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "express-rate-limit": "^8.2.1",
+    "github-markdown-css": "^5.8.1",
     "jsonwebtoken": "^9.0.2",
-    "markdown-pdf": "^11.0.0",
+    "markdown-it": "^14.1.0",
     "mongoose": "^8.18.0",
     "multer": "^2.0.2",
     "nodemon": "^3.1.10",
     "notion-to-md": "^3.1.9",
+    "puppeteer": "^24.36.1",
     "socket.io": "^4.8.1",
     "uuid": "^13.0.0"
   }

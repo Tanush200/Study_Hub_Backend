@@ -165,41 +165,96 @@ router.get("/:id/download-pdf", authMiddleware, checkNoteDownloadLimit, async (r
 
     // Check if this is a Notion import (has data URL)
     if (note.file?.fileUrl && note.file.fileUrl.startsWith('data:text/markdown;base64,')) {
-      const markdownpdf = require("markdown-pdf");
+      const puppeteer = require('puppeteer');
+      const MarkdownIt = require('markdown-it');
       const fs = require('fs');
-      const path = require('path');
-      const os = require('os');
+
+      const md = new MarkdownIt({
+        html: true,
+        linkify: true,
+        typographer: true
+      });
 
       // Extract base64 content
       const base64Content = note.file.fileUrl.replace('data:text/markdown;base64,', '');
       const markdownContent = Buffer.from(base64Content, 'base64').toString('utf-8');
 
-      // Create temporary files
-      const tempDir = os.tmpdir();
-      const mdPath = path.join(tempDir, `${note._id}.md`);
-      const pdfPath = path.join(tempDir, `${note._id}.pdf`);
+      // Get GitHub markdown CSS
+      let css = '';
+      try {
+        const cssPath = require.resolve('github-markdown-css');
+        css = fs.readFileSync(cssPath, 'utf8');
+      } catch (e) {
+        // Fallback CSS if file read fails
+        console.warn('Could not load github-markdown-css, using fallback');
+        css = `body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; line-height: 1.6; padding: 2rem; max-width: 800px; margin: 0 auto; color: #24292e; } h1, h2, h3 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; margin-top: 24px; margin-bottom: 16px; font-weight: 600; line-height: 1.25; } code { background-color: rgba(27,31,35,0.05); padding: 0.2em 0.4em; border-radius: 3px; font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; } pre { background-color: #f6f8fa; padding: 16px; overflow: auto; border-radius: 3px; } blockquote { padding: 0 1em; color: #6a737d; border-left: 0.25em solid #dfe2e5; } table { border-collapse: collapse; width: 100%; } table th, table td { padding: 6px 13px; border: 1px solid #dfe2e5; } table tr:nth-child(2n) { background-color: #f6f8fa; } img { max-width: 100%; box-sizing: content-box; background-color: #fff; }`;
+      }
 
-      // Write markdown to temp file
-      fs.writeFileSync(mdPath, markdownContent);
+      const htmlContent = md.render(markdownContent);
+      const fullHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            ${css}
+            .markdown-body {
+              box-sizing: border-box;
+              min-width: 200px;
+              max-width: 980px;
+              margin: 0 auto;
+              padding: 45px;
+            }
+            @media (max-width: 767px) {
+              .markdown-body {
+                padding: 15px;
+              }
+            }
+            /* PDF Specific Adjustments */
+            @page {
+              margin: 20mm;
+            }
+          </style>
+        </head>
+        <body class="markdown-body">
+          ${htmlContent}
+        </body>
+        </html>
+      `;
 
-      // Convert to PDF
-      markdownpdf().from(mdPath).to(pdfPath, () => {
-        // Read PDF and send
-        const pdfBuffer = fs.readFileSync(pdfPath);
-
-        // Clean up temp files
-        fs.unlinkSync(mdPath);
-        fs.unlinkSync(pdfPath);
-
-        // Set headers for PDF download
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="${note.title}.pdf"`);
-
-        // Increment download counter
-        Note.findByIdAndUpdate(req.params.id, { $inc: { "metadata.downloads": 1 } }).exec();
-
-        res.send(pdfBuffer);
+      // Launch headless browser
+      const browser = await puppeteer.launch({
+        headless: 'new',
+        args: ['--no-sandbox', '--disable-setuid-sandbox'] // Required for some container environments
       });
+
+      const page = await browser.newPage();
+      await page.setContent(fullHtml, { waitUntil: 'networkidle0' });
+
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        displayHeaderFooter: true,
+        headerTemplate: '<div style="font-size: 10px; margin-left: 20px; color: #666;">' + note.title + '</div>',
+        footerTemplate: '<div style="font-size: 10px; margin-left: 20px; color: #666;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>',
+        margin: {
+          top: '20mm',
+          bottom: '20mm',
+          left: '20mm',
+          right: '20mm'
+        }
+      });
+
+      await browser.close();
+
+      // Set headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${note.title}.pdf"`);
+
+      // Increment download counter
+      Note.findByIdAndUpdate(req.params.id, { $inc: { "metadata.downloads": 1 } }).exec();
+
+      res.send(pdfBuffer);
     } else {
       return res.status(400).json({ message: "PDF conversion only available for Notion imports" });
     }
