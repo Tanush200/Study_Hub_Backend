@@ -9,8 +9,8 @@ const resend = new Resend(process.env.RESEND_API_KEY);
  * @param {string} title - The title of the email
  * @returns {string} - The full HTML email
  */
-const getEmailTemplate = (content, title = 'StudyHub Notification') => {
-    return `
+const getEmailTemplate = (content, title = 'NoteVault Notification') => {
+  return `
     <!DOCTYPE html>
     <html>
     <head>
@@ -38,7 +38,7 @@ const getEmailTemplate = (content, title = 'StudyHub Notification') => {
           ${content}
         </div>
         <div class="footer">
-          <p>&copy; ${new Date().getFullYear()} StudyHub. All rights reserved.</p>
+          <p>&copy; ${new Date().getFullYear()} NoteVault. All rights reserved.</p>
           <p>If you didn't request this email, please ignore it.</p>
         </div>
       </div>
@@ -57,26 +57,26 @@ const getEmailTemplate = (content, title = 'StudyHub Notification') => {
  * @returns {Promise<Object>} - The result from Resend
  */
 const sendEmail = async ({ to, subject, html, text }) => {
-    try {
-        const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+  try {
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
-        // Wrap HTML in template if it's not already a full document
-        const finalHtml = html.includes('<!DOCTYPE html>') ? html : getEmailTemplate(html, subject);
+    // Wrap HTML in template if it's not already a full document
+    const finalHtml = html.includes('<!DOCTYPE html>') ? html : getEmailTemplate(html, subject);
 
-        const data = await resend.emails.send({
-            from: fromEmail,
-            to: [to],
-            subject: subject,
-            html: finalHtml,
-            text: text || "Please enable HTML to view this email.",
-        });
+    const data = await resend.emails.send({
+      from: fromEmail,
+      to: [to],
+      subject: subject,
+      html: finalHtml,
+      text: text || "Please enable HTML to view this email.",
+    });
 
-        console.log("Email sent successfully:", data);
-        return data;
-    } catch (error) {
-        console.error("Error sending email:", error);
-        throw error;
-    }
+    console.log("Email sent successfully:", data.id);
+    return data;
+  } catch (error) {
+    console.error("Error sending email:", error);
+    throw error;
+  }
 };
 
 module.exports = { sendEmail };

@@ -74,10 +74,12 @@ router.get("/", async (req, res) => {
         const query = { isPrivate: false, isActive: true };
 
         if (search) {
+            // Escape special regex characters to prevent crashes
+            const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             query.$or = [
-                { name: { $regex: search, $options: "i" } },
-                { description: { $regex: search, $options: "i" } },
-                { tags: { $in: [new RegExp(search, "i")] } },
+                { name: { $regex: safeSearch, $options: "i" } },
+                { description: { $regex: safeSearch, $options: "i" } },
+                { tags: { $in: [new RegExp(safeSearch, "i")] } },
             ];
         }
 
@@ -464,6 +466,53 @@ router.get("/:id/regenerate-invite", authMiddleware, async (req, res) => {
         });
     } catch (error) {
         console.error("Regenerate invite code error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+// @route   POST /api/groups/join-by-code
+// @desc    Join a group using invite code
+// @access  Private
+router.post("/join-by-code", authMiddleware, async (req, res) => {
+    try {
+        const { inviteCode } = req.body;
+
+        if (!inviteCode) {
+            return res.status(400).json({ message: "Invite code is required" });
+        }
+
+        const group = await Group.findOne({ inviteCode });
+
+        if (!group) {
+            return res.status(404).json({ message: "Invalid invite code. Group not found." });
+        }
+
+        // Check if already a member
+        if (group.isMember(req.user._id)) {
+            // Even if already member, return success so frontend redirects
+            return res.json({
+                message: "You are already a member of this group",
+                group
+            });
+        }
+
+        // Add user to members
+        group.members.push({
+            user: req.user._id,
+            role: "member",
+            joinedAt: new Date(),
+        });
+        group.memberCount += 1;
+
+        await group.save();
+
+        const updatedGroup = await Group.findById(group._id)
+            .populate("createdBy", "username profile.avatar")
+            .populate("members.user", "username profile.avatar");
+
+        res.json({ message: "Joined group successfully", group: updatedGroup });
+    } catch (error) {
+        console.error("Join group by code error:", error);
         res.status(500).json({ message: "Server error" });
     }
 });

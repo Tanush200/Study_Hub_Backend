@@ -367,6 +367,8 @@ app.use("/api/gamification", require("./routes/gamification"));
 app.use("/api/forum", forumRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/groups", require("./routes/groups"));
+app.use("/api/group-posts", require("./routes/groupPosts"));
+app.use("/api/group-events", require("./routes/groupEvents"));
 app.use("/api/payments", require("./routes/payments"))
 app.use("/api/upload", require("./routes/upload"));
 app.use("/api/support", require("./routes/support"));

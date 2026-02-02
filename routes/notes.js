@@ -60,7 +60,7 @@ router.patch("/:id/approve", authMiddleware, adminAuth, async (req, res) => {
           subject: "Your Note has been Approved! 🎉",
           html: `
                   <h1>Congratulations, ${note.uploaderId.username}!</h1>
-                  <p>Your note "<strong>${note.title}</strong>" has been approved by an admin and is now live on StudyHub.</p>
+                  <p>Your note "<strong>${note.title}</strong>" has been approved by an admin and is now live on NoteVault.</p>
                   <p>Thank you for contributing to the community!</p>
                 `,
           text: `Congratulations! Your note "${note.title}" has been approved.`
