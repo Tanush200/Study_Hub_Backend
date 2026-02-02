@@ -158,9 +158,13 @@ router.get("/:id", async (req, res) => {
 
             // Check if user is a member
             if (!group.isMember(req.user._id)) {
-                return res
-                    .status(403)
-                    .json({ message: "You are not a member of this group" });
+                // Return sanitized group info for non-members
+                // We hide the members list to protect privacy of private group members
+                const sanitizedGroup = group.toObject();
+                sanitizedGroup.members = []; // Hide members
+                // We can keep other public info like name, description, usage stats
+
+                return res.json({ group: sanitizedGroup });
             }
         }
 
