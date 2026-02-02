@@ -106,7 +106,10 @@ groupSchema.index({ "members.user": 1 });
 
 // Helper method to check if user is member
 groupSchema.methods.isMember = function (userId) {
-    return this.members.some((m) => m.user.toString() === userId.toString());
+    return this.members.some((m) => {
+        const id = m.user._id || m.user;
+        return id.toString() === userId.toString();
+    });
 };
 
 // Helper method to get user's role
