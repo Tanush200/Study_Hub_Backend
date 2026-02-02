@@ -1,4 +1,5 @@
 const express = require("express");
+const { sendEmail } = require("../utils/email");
 const Note = require("../models/Note");
 const User = require("../models/User");
 const fileOwnership = require("../middleware/fileOwnership");
@@ -41,7 +42,7 @@ router.patch("/:id/approve", authMiddleware, adminAuth, async (req, res) => {
       id,
       { status: "approved" },
       { new: true }
-    ).populate("uploaderId", "username profile");
+    ).populate("uploaderId", "username email profile");
 
     if (!note) {
       return res.status(404).json({ message: "Note not found" });
@@ -50,6 +51,24 @@ router.patch("/:id/approve", authMiddleware, adminAuth, async (req, res) => {
     await User.findByIdAndUpdate(note.uploaderId._id, {
       $inc: { "stats.notesUploaded": 1 },
     });
+
+    // Send approval email
+    try {
+      if (note.uploaderId.email) {
+        await sendEmail({
+          to: note.uploaderId.email,
+          subject: "Your Note has been Approved! 🎉",
+          html: `
+                  <h1>Congratulations, ${note.uploaderId.username}!</h1>
+                  <p>Your note "<strong>${note.title}</strong>" has been approved by an admin and is now live on StudyHub.</p>
+                  <p>Thank you for contributing to the community!</p>
+                `,
+          text: `Congratulations! Your note "${note.title}" has been approved.`
+        });
+      }
+    } catch (emailError) {
+      console.error("Failed to send approval email:", emailError);
+    }
 
     res.json({
       message: "Note approved successfully",
@@ -347,6 +366,11 @@ router.patch("/:id/like", authMiddleware, async (req, res) => {
 router.delete("/:id", authMiddleware, fileOwnership, async (req, res) => {
   try {
     const note = req.note;
+
+    // Restriction: Cannot delete approved notes unless admin
+    if (note.status === 'approved' && req.user.role !== 'admin') {
+      return res.status(403).json({ message: "You cannot delete an approved note." });
+    }
 
 
     if (note.file?.s3Key) {
