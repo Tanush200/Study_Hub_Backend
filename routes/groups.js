@@ -139,6 +139,19 @@ router.get("/my-groups", authMiddleware, async (req, res) => {
 // @access  Public (for public groups) / Private (for private groups)
 router.get("/:id", async (req, res) => {
     try {
+        // Optional Auth: Manually check for token to populate req.user if present
+        const token = req.header("Authorization")?.replace("Bearer ", "");
+        if (token) {
+            try {
+                const jwt = require("jsonwebtoken");
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                req.user = { _id: decoded.userId }; // Minimal user object
+            } catch (err) {
+                // Token invalid/expired - ignore, treat as guest
+                console.log("Optional auth token invalid:", err.message);
+            }
+        }
+
         const group = await Group.findById(req.params.id)
             .populate("createdBy", "username email profile.avatar")
             .populate("members.user", "username email profile.avatar");
