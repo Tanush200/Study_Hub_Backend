@@ -119,6 +119,96 @@ router.patch("/:id/download", authMiddleware, checkNoteDownloadLimit, async (req
   }
 });
 
+// Special endpoint for downloading Notion-imported notes
+router.get("/:id/download-content", authMiddleware, checkNoteDownloadLimit, async (req, res) => {
+  try {
+    const note = await Note.findById(req.params.id);
+
+    if (!note) {
+      return res.status(404).json({ message: "Note not found" });
+    }
+
+    // Check if this is a Notion import (has data URL)
+    if (note.file?.fileUrl && note.file.fileUrl.startsWith('data:text/markdown;base64,')) {
+      // Extract base64 content
+      const base64Content = note.file.fileUrl.replace('data:text/markdown;base64,', '');
+      const markdownContent = Buffer.from(base64Content, 'base64').toString('utf-8');
+
+      // Set headers for download
+      res.setHeader('Content-Type', 'text/markdown');
+      res.setHeader('Content-Disposition', `attachment; filename="${note.title}.md"`);
+
+      // Increment download counter
+      await Note.findByIdAndUpdate(req.params.id, { $inc: { "metadata.downloads": 1 } });
+
+      return res.send(markdownContent);
+    } else if (note.file?.fileUrl) {
+      // Regular S3 file - redirect to S3 URL
+      return res.redirect(note.file.fileUrl);
+    } else {
+      return res.status(404).json({ message: "File not found" });
+    }
+  } catch (error) {
+    console.error("Download content error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// PDF download endpoint for Notion-imported notes
+router.get("/:id/download-pdf", authMiddleware, checkNoteDownloadLimit, async (req, res) => {
+  try {
+    const note = await Note.findById(req.params.id);
+
+    if (!note) {
+      return res.status(404).json({ message: "Note not found" });
+    }
+
+    // Check if this is a Notion import (has data URL)
+    if (note.file?.fileUrl && note.file.fileUrl.startsWith('data:text/markdown;base64,')) {
+      const markdownpdf = require("markdown-pdf");
+      const fs = require('fs');
+      const path = require('path');
+      const os = require('os');
+
+      // Extract base64 content
+      const base64Content = note.file.fileUrl.replace('data:text/markdown;base64,', '');
+      const markdownContent = Buffer.from(base64Content, 'base64').toString('utf-8');
+
+      // Create temporary files
+      const tempDir = os.tmpdir();
+      const mdPath = path.join(tempDir, `${note._id}.md`);
+      const pdfPath = path.join(tempDir, `${note._id}.pdf`);
+
+      // Write markdown to temp file
+      fs.writeFileSync(mdPath, markdownContent);
+
+      // Convert to PDF
+      markdownpdf().from(mdPath).to(pdfPath, () => {
+        // Read PDF and send
+        const pdfBuffer = fs.readFileSync(pdfPath);
+
+        // Clean up temp files
+        fs.unlinkSync(mdPath);
+        fs.unlinkSync(pdfPath);
+
+        // Set headers for PDF download
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${note.title}.pdf"`);
+
+        // Increment download counter
+        Note.findByIdAndUpdate(req.params.id, { $inc: { "metadata.downloads": 1 } }).exec();
+
+        res.send(pdfBuffer);
+      });
+    } else {
+      return res.status(400).json({ message: "PDF conversion only available for Notion imports" });
+    }
+  } catch (error) {
+    console.error("PDF download error:", error);
+    res.status(500).json({ message: "Failed to generate PDF" });
+  }
+});
+
 router.patch("/:id/like", authMiddleware, async (req, res) => {
   try {
     const { action } = req.body;

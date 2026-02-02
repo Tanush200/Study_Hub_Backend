@@ -2,26 +2,26 @@ const mongoose = require("mongoose");
 require("dotenv").config();
 const User = require("../models/User");
 
-const makeAdmin = async() => {
+const makeAdmin = async () => {
     try {
         await mongoose.connect(process.env.MONGODB_URI);
-        const My_EMAIL = "sahatanush05@gmail.com"
+        const My_EMAIL = "sahatanush511@gmail.com"
         const user = await User.findOneAndUpdate(
-        { email: My_EMAIL},
-        { role: "admin" },
-        {new:true}
+            { email: My_EMAIL },
+            { role: "admin" },
+            { new: true }
         );
-        if(user) {
+        if (user) {
             console.log(`Made ${user.username} ${user.email} an admin.`);
 
-            
-        }else{
+
+        } else {
             console.log("User not found");
         }
         process.exit(0)
     } catch (error) {
-         console.error("Error:", error);
-         process.exit(1);
+        console.error("Error:", error);
+        process.exit(1);
     }
 };
 
