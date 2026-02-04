@@ -375,6 +375,7 @@ app.use("/api/support", require("./routes/support"));
 app.use("/api/reports", require("./routes/reportRoutes"));
 app.use("/api/admin/users", require("./routes/userAdminRoutes"));
 app.use("/api/notion", require("./routes/notion"));
+app.use("/api/ai", require("./routes/ai"));
 
 // ==================== Database Connection ====================
 mongoose

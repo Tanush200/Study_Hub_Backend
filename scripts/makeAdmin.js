@@ -5,7 +5,7 @@ const User = require("../models/User");
 const makeAdmin = async () => {
     try {
         await mongoose.connect(process.env.MONGODB_URI);
-        const My_EMAIL = "sahatanush511@gmail.com"
+        const My_EMAIL = "sahatanush05@gmail.com"
         const user = await User.findOneAndUpdate(
             { email: My_EMAIL },
             { role: "admin" },
